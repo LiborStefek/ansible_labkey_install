@@ -2,6 +2,16 @@
 
 Ansible playbook pro automatizovanou instalaci **LabKey Server v24+** (embedded) na Debian.
 
+## Architektura
+
+```
+Klient → nginx:443 (SSL, certifikát od lokální CA)
+              ↓
+         LabKey:8080 (plain HTTP, interní)
+```
+
+Nginx zajišťuje SSL terminaci a přesměrování HTTP→HTTPS. LabKey běží pouze interně na portu 8080.
+
 ## Požadavky
 
 **Řídicí stanice** (odkud se Ansible spouští):
@@ -51,6 +61,11 @@ labkey_dist_dir: "LabKey24.7.0-1-community"
 # Před ostrým nasazením změnit:
 labkey_db_pass:        "silné-heslo"
 labkey_encryption_key: "přesně-32-znaků-dlouhý-klíč!!"
+
+# Nginx / SSL — vyplnit před spuštěním ssl.yml:
+labkey_hostname: "labkey.firma.cz"   # hostname přidělený správcem sítě
+ssl_cert_file:   "labkey.crt"        # soubory uložit do files/
+ssl_key_file:    "labkey.key"        # privátní klíč — není v gitu!
 ```
 
 ### 4. SSH klíč
@@ -65,11 +80,32 @@ ssh-copy-id -i ~/.ssh/id_ed25519 uživatel@<IP adresa>
 # Test konektivity a sudo
 ansible-playbook playbooks/ping.yml
 
-# Plná instalace
+# Plná instalace LabKey
 ansible-playbook playbooks/install.yml
 ```
 
-## Co playbook nainstaluje
+### HTTPS (po obdržení certifikátu od správce sítě)
+
+1. Uložit certifikát a klíč do `files/`:
+   ```
+   files/labkey.crt
+   files/labkey.key
+   ```
+   Privátní klíč (`.key`) je v `.gitignore` — do gitu se nedostane.
+
+2. Nastavit hostname v `group_vars/labkey_servers.yml`:
+   ```yaml
+   labkey_hostname: "labkey.firma.cz"
+   ```
+
+3. Spustit:
+   ```bash
+   ansible-playbook playbooks/ssl.yml
+   ```
+
+## Co playboky nainstalují
+
+### `install.yml`
 
 | Krok | Co se provede |
 |------|--------------|
@@ -78,7 +114,15 @@ ansible-playbook playbooks/install.yml
 | Java | JDK 17 → `/labkey/apps/`, symlink `/usr/local/java` |
 | PostgreSQL | Přesun datového adresáře do `/usr/local/pgsql/data`, vytvoření DB a uživatele |
 | LabKey | Rozbalení distribuce, deploy JAR + konfigurace do `/labkey/labkey/` |
-| Systemd | Instalace a spuštění služby `labkey_server` |
+| Systemd | Instalace a spuštění služby `labkey_server` na portu 8080 |
+
+### `ssl.yml`
+
+| Krok | Co se provede |
+|------|--------------|
+| Nginx | Instalace nginx |
+| Certifikát | Zkopírování `.crt` a `.key` do `/etc/ssl/labkey/` |
+| Konfigurace | Nasazení reverse proxy — HTTPS:443 → LabKey:8080, HTTP:80 → redirect na HTTPS |
 
 ## Adresářová struktura po instalaci
 
@@ -95,19 +139,25 @@ ansible-playbook playbooks/install.yml
 
 /usr/local/java        # symlink na JDK
 /usr/local/pgsql/data  # PostgreSQL data
+/etc/ssl/labkey/       # SSL certifikát a klíč (po spuštění ssl.yml)
 ```
 
-## Správa služby
+## Správa služeb
 
 ```bash
+# LabKey
 systemctl status labkey_server
 systemctl restart labkey_server
 journalctl -u labkey_server -f
+
+# Nginx
+systemctl status nginx
+systemctl reload nginx
 ```
 
 ## Před ostrým nasazením
 
-1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, poté znovu spustit playbook
-2. **Firewall** — otevřít port 80 (výchozí) nebo jiný dle `server.port` v `application.properties`
-3. **SMTP** — nakonfigurovat v `/labkey/labkey/config/application.properties`
+1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, poté znovu spustit `install.yml`
+2. **SMTP** — nakonfigurovat v `/labkey/labkey/config/application.properties`
+3. **Firewall** — otevřít porty 80 a 443, port 8080 ponechat pouze lokálně dostupný
 4. **Zálohování** — nastavit zálohy PostgreSQL a adresáře `/labkey/labkey/`
