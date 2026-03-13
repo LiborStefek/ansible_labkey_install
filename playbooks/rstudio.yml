@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# R + RStudio Server + Pandoc
+#
+# Předpoklady:
+#   - soubor files/{{ rstudio_deb }} existuje
+#   - r-base je již nainstalován (install.yml)
+#
+# Spuštění: ansible-playbook playbooks/rstudio.yml
+# RStudio Server bude dostupný na http://<server>:8787
+# =============================================================================
+- name: R + RStudio Server + Pandoc
+  hosts: labkey_servers
+  become: true
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Závislosti RStudio Server
+  # ===========================================================================
+
+    - name: "RStudio | Instalace závislostí"
+      apt:
+        name:
+          - gdebi-core
+          - lib32gcc-s1
+          - lib32stdc++6
+          - libc6-i386
+          - libclang-dev
+          - libssl-dev
+          - libxcb-xkb1
+          - libxkbcommon0
+        state: present
+        update_cache: true
+
+  # ===========================================================================
+  # 2. Pandoc (z Debian repozitáře)
+  # ===========================================================================
+
+    - name: "Pandoc | Instalace"
+      apt:
+        name: pandoc
+        state: present
+
+  # ===========================================================================
+  # 3. RStudio Server
+  # ===========================================================================
+
+    - name: "RStudio | Zkopírování instalačního balíčku na server"
+      copy:
+        src: "../files/{{ rstudio_deb }}"
+        dest: "/tmp/{{ rstudio_deb }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "RStudio | Instalace přes gdebi"
+      command: gdebi -n /tmp/{{ rstudio_deb }}
+      args:
+        creates: /usr/lib/rstudio-server/bin/rserver
+
+    - name: "RStudio | Smazání instalačního balíčku"
+      file:
+        path: "/tmp/{{ rstudio_deb }}"
+        state: absent
+
+    - name: "RStudio | Spuštění a povolení služby"
+      service:
+        name: rstudio-server
+        state: started
+        enabled: true

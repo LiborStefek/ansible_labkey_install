@@ -124,6 +124,21 @@ ansible-playbook playbooks/install.yml
 | Certifikát | Zkopírování `.crt` a `.key` do `/etc/ssl/labkey/` |
 | Konfigurace | Nasazení reverse proxy — HTTPS:443 → LabKey:8080, HTTP:80 → redirect na HTTPS |
 
+### `rstudio.yml` (volitelné)
+
+| Krok | Co se provede |
+|------|--------------|
+| Závislosti | lib32gcc, libclang, libssl a další systémové knihovny |
+| Pandoc | Instalace z Debian repozitáře |
+| RStudio Server | Instalace z lokálního `.deb`, spuštění služby `rstudio-server` |
+
+RStudio Server bude dostupný na `http://<server>:8787`. Přihlášení přes systémové uživatelské účty.
+
+Před spuštěním uložit `.deb` do `files/` a zkontrolovat název souboru v `group_vars`:
+```yaml
+rstudio_deb: "rstudio-server-2023.12.1-402-amd64.deb"
+```
+
 ## Adresářová struktura po instalaci
 
 ```
