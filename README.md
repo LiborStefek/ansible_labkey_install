@@ -139,6 +139,9 @@ Před spuštěním uložit `.deb` do `files/` a zkontrolovat název souboru v `g
 rstudio_deb: "rstudio-server-2023.12.1-402-amd64.deb"
 ```
 
+> **Poznámka k Pandocu:** Pandoc se instaluje z Debian repozitáře (nevyžaduje lokální soubor).
+> Verze z repozitáře nemusí odpovídat verzi v `.deb` použité při ručné instalaci — pro LabKey reporty to není podstatné.
+
 ## Adresářová struktura po instalaci
 
 ```
@@ -168,11 +171,15 @@ journalctl -u labkey_server -f
 # Nginx
 systemctl status nginx
 systemctl reload nginx
+
+# RStudio Server
+systemctl status rstudio-server
+systemctl restart rstudio-server
 ```
 
 ## Před ostrým nasazením
 
 1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, poté znovu spustit `install.yml`
 2. **SMTP** — nakonfigurovat v `/labkey/labkey/config/application.properties`
-3. **Firewall** — otevřít porty 80 a 443, port 8080 ponechat pouze lokálně dostupný
+3. **Firewall** — otevřít porty 80 a 443, porty 8080 a 8787 ponechat pouze lokálně dostupné
 4. **Zálohování** — nastavit zálohy PostgreSQL a adresáře `/labkey/labkey/`
