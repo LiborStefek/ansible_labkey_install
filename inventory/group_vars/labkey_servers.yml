@@ -48,7 +48,7 @@ rstudio_deb: "rstudio-server-2023.12.1-402-amd64.deb"   # soubor uložit do file
 # Nginx / SSL
 # =============================================================================
 labkey_port:     8080                      # interní HTTP port LabKey
-labkey_hostname: "labkey.example.com"      # hostname přidělený správcem sítě
+labkey_hostname: "labkey-dev.fno.cz"       # hostname přidělený správcem sítě
 
 ssl_cert_file: "labkey.crt"               # soubory uložit do files/
 ssl_key_file:  "labkey.key"
