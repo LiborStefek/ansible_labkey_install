@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# Smazání a znovuvytvoření databáze LabKey — příprava pro čistou reinstalaci
+#
+# POZOR: Tato operace je nevratná. Všechna data v DB budou ztracena.
+#
+# Typické použití:
+#   ansible-playbook playbooks/drop-db.yml
+#   ansible-playbook playbooks/install.yml
+# =============================================================================
+- name: Smazání a znovuvytvoření DB LabKey
+  hosts: labkey_servers
+  become: true
+
+  tasks:
+
+    - name: "Potvrzení | Vyžádání explicitního souhlasu"
+      pause:
+        prompt: >
+          POZOR: Tato operace smaže databázi '{{ labkey_db_name }}' včetně všech dat.
+          Pro pokračování stiskni ENTER, pro zrušení Ctrl+C.
+
+    - name: "LabKey | Zastavení služby"
+      service:
+        name: labkey_server
+        state: stopped
+
+    - name: "LabKey | Smazání lock souboru (pokud existuje)"
+      file:
+        path: "{{ labkey_home }}/labkeyUpgradeLockFile"
+        state: absent
+
+    - name: "PostgreSQL | Smazání databáze"
+      command: sudo -u postgres psql -c "DROP DATABASE IF EXISTS {{ labkey_db_name }};"
+
+    - name: "PostgreSQL | Smazání uživatele"
+      command: sudo -u postgres psql -c "DROP USER IF EXISTS {{ labkey_db_user }};"
+
+    - name: "PostgreSQL | Vytvoření uživatele"
+      command: sudo -u postgres psql -c "CREATE USER {{ labkey_db_user }} PASSWORD '{{ labkey_db_pass }}';"
+
+    - name: "PostgreSQL | Vytvoření databáze"
+      command: sudo -u postgres psql -c "CREATE DATABASE {{ labkey_db_name }} WITH OWNER {{ labkey_db_user }};"
+
+    - name: "PostgreSQL | Odebrání přístupu pro public"
+      command: sudo -u postgres psql -c "REVOKE ALL ON DATABASE {{ labkey_db_name }} FROM public;"
+
+    - name: "Hotovo | Databáze připravena pro reinstalaci"
+      debug:
+        msg:
+          - "Databáze '{{ labkey_db_name }}' byla smazána a znovu vytvořena."
+          - "Spusť nyní: ansible-playbook playbooks/install.yml"

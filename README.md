@@ -84,6 +84,16 @@ ansible-playbook playbooks/ping.yml
 ansible-playbook playbooks/install.yml
 ```
 
+### Čistá reinstalace (smazání dat)
+
+```bash
+# POZOR: smaže všechna data v DB, vyžádá potvrzení
+ansible-playbook playbooks/drop-db.yml
+
+# Poté znovu nainstalovat
+ansible-playbook playbooks/install.yml
+```
+
 ### HTTPS (po obdržení certifikátu od správce sítě)
 
 1. Uložit certifikát a klíč do `files/`:
