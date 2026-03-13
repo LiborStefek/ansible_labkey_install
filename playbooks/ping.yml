@@ -1,0 +1,23 @@
+---
+# Test konektivity a sudo práv
+- name: Ověření spojení a sudo
+  hosts: labkey_servers
+  gather_facts: True
+
+  tasks:
+    - name: Ping
+      ping:
+
+    - name: Zobraz OS info
+      debug:
+        msg: "{{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_architecture }})"
+
+    - name: Ověř sudo - přečti /etc/shadow
+      command: cat /etc/shadow
+      become: True
+      register: shadow_result
+      changed_when: False
+
+    - name: Sudo funguje
+      debug:
+        msg: "Sudo OK - /etc/shadow přečten"

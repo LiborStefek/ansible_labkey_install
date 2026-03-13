@@ -1,0 +1,5 @@
+# Tarbally jsou velké binární soubory — nepatří do gitu.
+# Uložte je sem ručně před spuštěním playbooku.
+*.tar.gz
+*.zip
+*.deb

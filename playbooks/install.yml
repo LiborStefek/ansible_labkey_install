@@ -1,0 +1,274 @@
+---
+# =============================================================================
+# LabKey Server v24 — plná instalace na Debian
+# Spuštění: ansible-playbook playbooks/install.yml
+# =============================================================================
+- name: Instalace LabKey Server v24
+  hosts: labkey_servers
+  become: true
+
+  vars:
+    labkey_dist: "{{ labkey_src }}/{{ labkey_dist_dir }}"
+    jdk_path:    "{{ labkey_apps }}/{{ jdk_dir }}"
+
+  # ===========================================================================
+  # 1. APT balíčky
+  # ===========================================================================
+  tasks:
+
+    - name: "APT | Aktualizace cache"
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: "APT | Instalace závislostí"
+      apt:
+        name:
+          - postgresql
+          - r-base
+          - r-base-dev
+          - r-recommended
+          - tex-common
+          - texinfo
+          - uuid-runtime
+          - util-linux
+          - wget
+          - gpg
+          - apt-transport-https
+        state: present
+
+  # ===========================================================================
+  # 2. Adresářová struktura
+  # ===========================================================================
+
+    - name: "Adresáře | Vytvoření adresářové struktury LabKey"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ labkey_root }}"
+        - "{{ labkey_home }}"
+        - "{{ labkey_home }}/labkey-tmp"
+        - "{{ labkey_src }}"
+        - "{{ labkey_apps }}"
+        - "{{ labkey_backup }}"
+
+  # ===========================================================================
+  # 3. Java (JDK 17)
+  # ===========================================================================
+
+    - name: "Java | Zkopírování JDK archivu na server"
+      copy:
+        src: "../files/{{ jdk_archive }}"
+        dest: "{{ labkey_apps }}/{{ jdk_archive }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Java | Rozbalení JDK do {{ labkey_apps }}"
+      unarchive:
+        src: "{{ labkey_apps }}/{{ jdk_archive }}"
+        dest: "{{ labkey_apps }}"
+        remote_src: true
+        creates: "{{ jdk_path }}"
+
+    - name: "Java | Symlink /usr/local/java → {{ jdk_path }}"
+      file:
+        src: "{{ jdk_path }}"
+        dest: "/usr/local/java"
+        state: link
+
+    - name: "Java | Přidání JAVA_HOME do /etc/profile"
+      blockinfile:
+        path: /etc/profile
+        marker: "# {mark} JAVA_HOME (LabKey)"
+        block: |
+          export JAVA_HOME=/usr/local/java
+          export PATH=$PATH:$JAVA_HOME/bin
+
+  # ===========================================================================
+  # 4. PostgreSQL
+  # ===========================================================================
+
+    - name: "PostgreSQL | Zjištění verze PostgreSQL"
+      shell: pg_lsclusters --no-header | awk '{print $1}' | head -1
+      register: pg_version
+      changed_when: false
+
+    - name: "PostgreSQL | Zastavení služby před přesunem dat"
+      service:
+        name: postgresql
+        state: stopped
+
+    - name: "PostgreSQL | Vytvoření cílového datového adresáře"
+      file:
+        path: "{{ pg_data_dir }}"
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: "0700"
+
+    - name: "PostgreSQL | Přesun datového adresáře do {{ pg_data_dir }}"
+      command: >
+        mv /var/lib/postgresql/{{ pg_version.stdout }}/main
+           {{ pg_data_dir }}/main
+      args:
+        creates: "{{ pg_data_dir }}/main"
+
+    - name: "PostgreSQL | Symlink {{ pg_version.stdout }}/main → {{ pg_data_dir }}/main"
+      file:
+        src: "{{ pg_data_dir }}/main"
+        dest: "/var/lib/postgresql/{{ pg_version.stdout }}/main"
+        state: link
+
+    - name: "PostgreSQL | Spuštění služby"
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: "PostgreSQL | Zkopírování SQL skriptu pro vytvoření DB"
+      template:
+        src: "../templates/create_db.sql.j2"
+        dest: "/tmp/create_db.sql"
+        owner: postgres
+        mode: "0600"
+
+    - name: "PostgreSQL | Vytvoření uživatele a databáze"
+      command: sudo -u postgres psql -f /tmp/create_db.sql
+      ignore_errors: true    # ignoruje chybu pokud DB/user již existuje
+
+    - name: "PostgreSQL | Smazání dočasného SQL souboru"
+      file:
+        path: /tmp/create_db.sql
+        state: absent
+
+  # ===========================================================================
+  # 5. Systémový uživatel labkey
+  # ===========================================================================
+
+    - name: "Uživatel | Vytvoření systémového uživatele labkey"
+      user:
+        name: "{{ labkey_system_user }}"
+        system: true
+        create_home: true
+        shell: /bin/false
+        comment: "LabKey Server service account"
+
+    - name: "Uživatel | Nastavení vlastníka {{ labkey_home }}"
+      file:
+        path: "{{ labkey_home }}"
+        owner: "{{ labkey_system_user }}"
+        group: "{{ labkey_system_user }}"
+        recurse: true
+
+  # ===========================================================================
+  # 6. LabKey binaries
+  # ===========================================================================
+
+    - name: "LabKey | Zkopírování LabKey archivu na server"
+      copy:
+        src: "../files/{{ labkey_archive }}"
+        dest: "{{ labkey_src }}/{{ labkey_archive }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "LabKey | Rozbalení LabKey distribuce do {{ labkey_src }}"
+      unarchive:
+        src: "{{ labkey_src }}/{{ labkey_archive }}"
+        dest: "{{ labkey_src }}"
+        remote_src: true
+        creates: "{{ labkey_dist }}"
+
+    - name: "LabKey | Zkopírování labkeyServer.jar do {{ labkey_home }}"
+      copy:
+        src: "{{ labkey_dist }}/labkeyServer.jar"
+        dest: "{{ labkey_home }}/labkeyServer.jar"
+        owner: "{{ labkey_system_user }}"
+        group: "{{ labkey_system_user }}"
+        mode: "0644"
+        remote_src: true
+
+    - name: "LabKey | Zkopírování výchozí konfigurace do {{ labkey_home }}/config"
+      copy:
+        src: "{{ labkey_dist }}/config/"
+        dest: "{{ labkey_home }}/config/"
+        owner: "{{ labkey_system_user }}"
+        group: "{{ labkey_system_user }}"
+        remote_src: true
+
+  # ===========================================================================
+  # 7. application.properties — doplnění hodnot
+  # ===========================================================================
+
+    - name: "Konfig | Nastavení DB uživatelského jména"
+      replace:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '@@username@@'
+        replace: "{{ labkey_db_user }}"
+
+    - name: "Konfig | Nastavení DB hesla"
+      replace:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '@@password@@'
+        replace: "{{ labkey_db_pass }}"
+
+    - name: "Konfig | Nastavení šifrovacího klíče"
+      replace:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '@@encryptionKey@@'
+        replace: "{{ labkey_encryption_key }}"
+
+  # ===========================================================================
+  # 8. Systemd service
+  # ===========================================================================
+
+    - name: "Systemd | Instalace labkey_server.service"
+      template:
+        src: "../templates/labkey_server.service.j2"
+        dest: "/etc/systemd/system/labkey_server.service"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Systemd | daemon-reload po instalaci service souboru"
+      systemd:
+        daemon_reload: true
+
+    - name: "Systemd | Povolení a spuštění labkey_server"
+      service:
+        name: labkey_server
+        state: started
+        enabled: true
+
+  # ===========================================================================
+  # 9. Upozornění po instalaci
+  # ===========================================================================
+
+    - name: "HOTOVO | Upozornění na kroky před ostrým nasazením"
+      debug:
+        msg:
+          - "============================================================"
+          - " LabKey Server byl nainstalován a spuštěn."
+          - " Před ostrým nasazením je nutné:"
+          - ""
+          - " 1. HESLA — v group_vars/labkey_servers.yml změnit:"
+          - "    - labkey_db_pass (nyní: '{{ labkey_db_pass }}')"
+          - "    - labkey_encryption_key (nyní: '{{ labkey_encryption_key }}')"
+          - "    Poté znovu spustit playbook (idempotentní)."
+          - ""
+          - " 2. FIREWALL — otevřít port 80 (nebo jiný, dle server.port)"
+          - "    v application.properties"
+          - ""
+          - " 3. SMTP — nakonfigurovat v application.properties:"
+          - "    {{ labkey_home }}/config/application.properties"
+          - ""
+          - " 4. ZÁLOHOVÁNÍ — nastavit zálohy PostgreSQL a {{ labkey_home }}"
+          - ""
+          - " Stav služby: systemctl status labkey_server"
+          - " Logy:        journalctl -u labkey_server -f"
+          - "============================================================"

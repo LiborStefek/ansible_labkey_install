@@ -1,0 +1,40 @@
+---
+# =============================================================================
+# Verze balíčků — názvy souborů musí odpovídat tomu, co je v files/
+# =============================================================================
+jdk_archive:    "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
+jdk_dir:        "jdk-17.0.18+8"                 # adresář uvnitř archivu
+
+labkey_archive: "LabKey24.7.0-1-community-embedded.tar.gz"
+labkey_dist_dir: "LabKey24.7.0-1-community"     # adresář uvnitř archivu
+
+# =============================================================================
+# Adresářová struktura na cílovém serveru
+# =============================================================================
+labkey_root:        "/labkey"
+labkey_home:        "/labkey/labkey"
+labkey_src:         "/labkey/src"
+labkey_apps:        "/labkey/apps"
+labkey_backup:      "/labkey/backupArchive"
+
+labkey_system_user: "labkey"
+
+# =============================================================================
+# PostgreSQL
+# =============================================================================
+labkey_db_name: "labkey"
+labkey_db_user: "labkey"
+labkey_db_pass: "labkey"             # TESTOVACÍ heslo — před ostrým nasazením změnit!
+
+pg_data_dir:    "/usr/local/pgsql/data"
+
+# =============================================================================
+# LabKey konfigurace (application.properties)
+# =============================================================================
+labkey_encryption_key: "changeme32charslongkey12345678"  # přesně 32 znaků
+
+# =============================================================================
+# JVM paměť
+# =============================================================================
+labkey_jvm_min_heap: "2G"
+labkey_jvm_max_heap: "4G"

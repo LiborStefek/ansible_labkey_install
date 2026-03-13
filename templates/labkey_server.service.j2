@@ -1,0 +1,34 @@
+[Unit]
+Description=LabKey Server Application
+After=syslog.target network.target
+
+[Service]
+Type=simple
+Environment="JAVA_HOME=/usr/local/java"
+Environment="LABKEY_HOME={{ labkey_home }}"
+WorkingDirectory={{ labkey_home }}
+OOMScoreAdjust=-500
+
+ExecStart=/usr/local/java/bin/java \
+    -Xms{{ labkey_jvm_min_heap }} \
+    -Xmx{{ labkey_jvm_max_heap }} \
+    -XX:+HeapDumpOnOutOfMemoryError \
+    -Djava.io.tmpdir={{ labkey_home }}/labkey-tmp \
+    -Dorg.apache.catalina.startup.EXIT_ON_INIT_FAILURE=true \
+    -DterminateOnStartupFailure=true \
+    --add-opens=java.base/java.lang=ALL-UNNAMED \
+    --add-opens=java.base/java.io=ALL-UNNAMED \
+    --add-opens=java.base/java.util=ALL-UNNAMED \
+    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
+    --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED \
+    -jar labkeyServer.jar
+
+SuccessExitStatus=0 143
+Restart=on-failure
+RestartSec=15
+
+User={{ labkey_system_user }}
+Group={{ labkey_system_user }}
+
+[Install]
+WantedBy=multi-user.target

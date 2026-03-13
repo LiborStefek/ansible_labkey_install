@@ -1,0 +1,3 @@
+CREATE USER {{ labkey_db_user }} PASSWORD '{{ labkey_db_pass }}';
+CREATE DATABASE {{ labkey_db_name }} WITH OWNER {{ labkey_db_user }};
+REVOKE ALL ON DATABASE {{ labkey_db_name }} FROM public;
