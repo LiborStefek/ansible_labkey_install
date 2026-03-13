@@ -33,8 +33,11 @@ Stáhnout a uložit do `files/`:
 | Soubor | Zdroj | Potřebný pro |
 |--------|-------|-------------|
 | `OpenJDK17U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) | `install.yml` |
-| `LabKey*-community-embedded.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) | `install.yml` |
+| `LabKey*-community*.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) | `install.yml` |
 | `rstudio-server-*.deb` | [posit.co/download/rstudio-server](https://posit.co/download/rstudio-server/) | `rstudio.yml` |
+| `ROracle_*.tar.gz` | [CRAN archive](https://cran.r-project.org/src/contrib/Archive/ROracle/) | `oracle.yml` |
+| `instantclient-basic-linux.x64-*.zip` | [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje login) | `oracle.yml` |
+| `instantclient-sdk-linux.x64-*.zip` | [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje login) | `oracle.yml` |
 
 ### 2. Inventory
 
@@ -56,8 +59,9 @@ Upravit `inventory/group_vars/labkey_servers.yml`:
 # Názvy souborů musí odpovídat tomu, co je v files/
 jdk_archive:     "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
 jdk_dir:         "jdk-17.0.18+8"
-labkey_archive:  "LabKey24.7.0-1-community-embedded.tar.gz"
-labkey_dist_dir: "LabKey24.7.0-1-community"
+# Odkomentovat požadovanou verzi LabKey:
+labkey_archive:  "LabKey25.11.0-1-community.tar.gz"
+labkey_dist_dir: "LabKey25.11.0-1-community"
 
 # Před ostrým nasazením změnit:
 labkey_db_pass:        "silné-heslo"
@@ -151,11 +155,66 @@ RStudio Server bude dostupný na `http://<server>:8787`. Přihlášení přes sy
 
 Před spuštěním uložit `.deb` do `files/` a zkontrolovat název souboru v `group_vars`:
 ```yaml
-rstudio_deb: "rstudio-server-2023.12.1-402-amd64.deb"
+rstudio_deb: "rstudio-server-2024.09.1-394-amd64.deb"
 ```
 
 > **Poznámka k Pandocu:** Pandoc se instaluje z Debian repozitáře (nevyžaduje lokální soubor).
-> Verze z repozitáře nemusí odpovídat verzi v `.deb` použité při ručné instalaci — pro LabKey reporty to není podstatné.
+
+### `oracle.yml` (volitelné)
+
+Instaluje Oracle Instant Client a zkompiluje R balíček ROracle pro přístup k Oracle DB z R scriptů v LabKey.
+
+| Krok | Co se provede |
+|------|--------------|
+| APT | libaio1, unzip |
+| Oracle IC | Rozbalení Basic + SDK do `/opt/oracle/instantclient_*/` |
+| ldconfig | Registrace sdílených knihoven |
+| profile.d | `/etc/profile.d/oracle_client.sh` — ORACLE_HOME, LD_LIBRARY_PATH |
+| ROracle | `R CMD INSTALL` s OCI_LIB/OCI_INC, výsledek v `/usr/local/lib/R/site-library/ROracle` |
+
+Před spuštěním uložit do `files/`:
+- `instantclient-basic-linux.x64-*.zip` a `instantclient-sdk-linux.x64-*.zip` — z [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje účet Oracle)
+- `ROracle_*.tar.gz` — z [CRAN archive](https://cran.r-project.org/src/contrib/Archive/ROracle/)
+
+### `backup.yml` / `restore.yml`
+
+**Záloha** (pg_dump + konfigurační soubory):
+```bash
+ansible-playbook playbooks/backup.yml
+```
+Zálohy se ukládají do `{{ labkey_backup }}/` (výchozí `/labkey/backupArchive/`):
+- `db_YYYYMMDD_HHMMSS.sql.gz` — pg_dump
+- `files_YYYYMMDD_HHMMSS.tar.gz` — adresář `config/`
+
+**Obnova:**
+```bash
+# Zobrazit dostupné zálohy
+ansible-playbook playbooks/restore.yml
+
+# Obnovit konkrétní zálohu (POZOR: přepíše stávající DB)
+ansible-playbook playbooks/restore.yml -e backup_db_file=db_20260313_153045.sql.gz
+```
+
+### `upgrade.yml`
+
+Upgrade LabKey na novou verzi (zachová `application.properties`):
+
+1. V `group_vars/labkey_servers.yml` odkomentovat novou verzi
+2. Nový tarball uložit do `files/`
+3. Spustit:
+   ```bash
+   ansible-playbook playbooks/upgrade.yml
+   ```
+
+### `profile.yml`
+
+Nastaví prostředí pro administrátory z linuxové skupiny `labkey`:
+- `/etc/profile.d/labkey_env.sh` — LABKEY_HOME, JAVA_HOME, aliasy
+- `/labkey/admin/` — administrační skripty (backup.sh, restart.sh, status.sh, log.sh)
+
+```bash
+ansible-playbook playbooks/profile.yml
+```
 
 ## Adresářová struktura po instalaci
 

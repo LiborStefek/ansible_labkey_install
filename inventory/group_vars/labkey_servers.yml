@@ -10,17 +10,17 @@ jdk_dir:     "jdk-17.0.18+8"                 # adresář uvnitř archivu
 # Příslušný tarball musí být uložen v files/
 # =============================================================================
 
-# --- LabKey 24.7 ---
+# --- LabKey 24.7 (embedded) ---
 # labkey_archive:  "LabKey24.7.0-1-community-embedded.tar.gz"
 # labkey_dist_dir: "LabKey24.7.0-1-community"
 
 # --- LabKey 24.11 ---
-# labkey_archive:  "LabKey24.11.1-3-community-embedded.tar.gz"
+# labkey_archive:  "LabKey24.11.1-3-community.tar.gz"
 # labkey_dist_dir: "LabKey24.11.1-3-community"
 
-# --- LabKey 25.3 (aktuální) ---
-labkey_archive:  "LabKey25.3.2-3-community-embedded.tar.gz"
-labkey_dist_dir: "LabKey25.3.2-3-community"
+# --- LabKey 25.11 (aktuální) ---
+labkey_archive:  "LabKey25.11.0-1-community.tar.gz"
+labkey_dist_dir: "LabKey25.11.0-1-community"
 
 # =============================================================================
 # Adresářová struktura na cílovém serveru
@@ -67,7 +67,7 @@ oracle_client_dir:           "/opt/oracle"
 oracle_instant_client_dir:   "instantclient_23_6"        # adresář po rozbalení
 oracle_basic_zip:  "instantclient-basic-linux.x64-23.6.0.24.10.zip"
 oracle_sdk_zip:    "instantclient-sdk-linux.x64-23.6.0.24.10.zip"
-roracle_tar:       "ROracle_1.5-0.tar.gz"
+roracle_tar:       "ROracle_1.3-1.1.tar.gz"
 
 # =============================================================================
 # Nginx / SSL
