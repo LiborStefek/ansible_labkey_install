@@ -30,10 +30,11 @@ Nginx zajišťuje SSL terminaci a přesměrování HTTP→HTTPS. LabKey běží 
 
 Stáhnout a uložit do `files/`:
 
-| Soubor | Zdroj |
-|--------|-------|
-| `OpenJDK17U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) |
-| `LabKey*-community-embedded.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) |
+| Soubor | Zdroj | Potřebný pro |
+|--------|-------|-------------|
+| `OpenJDK17U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) | `install.yml` |
+| `LabKey*-community-embedded.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) | `install.yml` |
+| `rstudio-server-*.deb` | [posit.co/download/rstudio-server](https://posit.co/download/rstudio-server/) | `rstudio.yml` |
 
 ### 2. Inventory
 
@@ -133,6 +134,10 @@ ansible-playbook playbooks/install.yml
 | Nginx | Instalace nginx |
 | Certifikát | Zkopírování `.crt` a `.key` do `/etc/ssl/labkey/` |
 | Konfigurace | Nasazení reverse proxy — HTTPS:443 → LabKey:8080, HTTP:80 → redirect na HTTPS |
+
+### `drop-db.yml`
+
+Smaže a znovu vytvoří databázi LabKey. Zastaví LabKey, odstraní lock soubor, dropne DB a uživatele, vytvoří je znovu. **Vyžádá interaktivní potvrzení.** Použít před čistou reinstalací.
 
 ### `rstudio.yml` (volitelné)
 
