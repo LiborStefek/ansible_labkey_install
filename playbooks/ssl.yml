@@ -1,0 +1,98 @@
+---
+# =============================================================================
+# Nginx SSL reverse proxy pro LabKey Server
+#
+# Předpoklady:
+#   - soubory files/{{ ssl_cert_file }} a files/{{ ssl_key_file }} existují
+#   - LabKey běží na portu {{ labkey_port }} (nastaveno v install.yml)
+#
+# Spuštění: ansible-playbook playbooks/ssl.yml
+# =============================================================================
+- name: Nginx SSL reverse proxy
+  hosts: labkey_servers
+  become: true
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Nginx
+  # ===========================================================================
+
+    - name: "Nginx | Instalace"
+      apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+  # ===========================================================================
+  # 2. SSL certifikát a klíč
+  # ===========================================================================
+
+    - name: "SSL | Vytvoření adresáře pro certifikáty"
+      file:
+        path: /etc/ssl/labkey
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "SSL | Zkopírování certifikátu"
+      copy:
+        src: "../files/{{ ssl_cert_file }}"
+        dest: "/etc/ssl/labkey/{{ ssl_cert_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "SSL | Zkopírování privátního klíče"
+      copy:
+        src: "../files/{{ ssl_key_file }}"
+        dest: "/etc/ssl/labkey/{{ ssl_key_file }}"
+        owner: root
+        group: root
+        mode: "0640"
+
+  # ===========================================================================
+  # 3. Nginx konfigurace
+  # ===========================================================================
+
+    - name: "Nginx | Nasazení konfigurace vhosta"
+      template:
+        src: "../templates/nginx_labkey.conf.j2"
+        dest: "/etc/nginx/sites-available/labkey"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload nginx
+
+    - name: "Nginx | Aktivace vhosta"
+      file:
+        src: /etc/nginx/sites-available/labkey
+        dest: /etc/nginx/sites-enabled/labkey
+        state: link
+      notify: reload nginx
+
+    - name: "Nginx | Deaktivace výchozího vhosta"
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: reload nginx
+
+    - name: "Nginx | Ověření konfigurace"
+      command: nginx -t
+      changed_when: false
+
+    - name: "Nginx | Spuštění a povolení služby"
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+  # ===========================================================================
+  # Handlery
+  # ===========================================================================
+  handlers:
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded

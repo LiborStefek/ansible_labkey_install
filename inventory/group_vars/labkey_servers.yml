@@ -38,3 +38,12 @@ labkey_encryption_key: "changeme32charslongkey12345678"  # přesně 32 znaků
 # =============================================================================
 labkey_jvm_min_heap: "2G"
 labkey_jvm_max_heap: "4G"
+
+# =============================================================================
+# Nginx / SSL
+# =============================================================================
+labkey_port:     8080                      # interní HTTP port LabKey
+labkey_hostname: "labkey.example.com"      # hostname přidělený správcem sítě
+
+ssl_cert_file: "labkey.crt"               # soubory uložit do files/
+ssl_key_file:  "labkey.key"

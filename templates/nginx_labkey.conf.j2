@@ -1,0 +1,31 @@
+# Nginx reverse proxy pro LabKey Server
+# HTTP → přesměrování na HTTPS
+server {
+    listen 80;
+    server_name {{ labkey_hostname }};
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS → proxy na LabKey
+server {
+    listen 443 ssl;
+    server_name {{ labkey_hostname }};
+
+    ssl_certificate     /etc/ssl/labkey/{{ ssl_cert_file }};
+    ssl_certificate_key /etc/ssl/labkey/{{ ssl_key_file }};
+
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # Doporučená velikost pro uploady do LabKey
+    client_max_body_size 1G;
+
+    location / {
+        proxy_pass         http://127.0.0.1:{{ labkey_port }};
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}

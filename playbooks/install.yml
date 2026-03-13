@@ -223,6 +223,12 @@
         regexp: '@@encryptionKey@@'
         replace: "{{ labkey_encryption_key }}"
 
+    - name: "Konfig | Nastavení portu LabKey ({{ labkey_port }})"
+      replace:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^server\.port=.*'
+        replace: "server.port={{ labkey_port }}"
+
   # ===========================================================================
   # 8. Systemd service
   # ===========================================================================

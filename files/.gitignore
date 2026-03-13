@@ -3,3 +3,6 @@
 *.tar.gz
 *.zip
 *.deb
+
+# SSL privátní klíče nikdy do gitu
+*.key
