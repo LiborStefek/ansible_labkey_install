@@ -1,12 +1,26 @@
 ---
 # =============================================================================
-# Verze balíčků — názvy souborů musí odpovídat tomu, co je v files/
+# JDK
 # =============================================================================
-jdk_archive:    "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
-jdk_dir:        "jdk-17.0.18+8"                 # adresář uvnitř archivu
+jdk_archive: "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
+jdk_dir:     "jdk-17.0.18+8"                 # adresář uvnitř archivu
 
-labkey_archive: "LabKey24.7.0-1-community-embedded.tar.gz"
-labkey_dist_dir: "LabKey24.7.0-1-community"     # adresář uvnitř archivu
+# =============================================================================
+# LabKey verze — odkomentovat požadovanou verzi, ostatní zakomentovat
+# Příslušný tarball musí být uložen v files/
+# =============================================================================
+
+# --- LabKey 24.7 ---
+# labkey_archive:  "LabKey24.7.0-1-community-embedded.tar.gz"
+# labkey_dist_dir: "LabKey24.7.0-1-community"
+
+# --- LabKey 24.11 ---
+# labkey_archive:  "LabKey24.11.1-3-community-embedded.tar.gz"
+# labkey_dist_dir: "LabKey24.11.1-3-community"
+
+# --- LabKey 25.3 (aktuální) ---
+labkey_archive:  "LabKey25.3.2-3-community-embedded.tar.gz"
+labkey_dist_dir: "LabKey25.3.2-3-community"
 
 # =============================================================================
 # Adresářová struktura na cílovém serveru
@@ -16,6 +30,7 @@ labkey_home:        "/labkey/labkey"
 labkey_src:         "/labkey/src"
 labkey_apps:        "/labkey/apps"
 labkey_backup:      "/labkey/backupArchive"
+labkey_admin:       "/labkey/admin"
 
 labkey_system_user: "labkey"
 
@@ -26,7 +41,7 @@ labkey_db_name: "labkey"
 labkey_db_user: "labkey"
 labkey_db_pass: "labkey"             # TESTOVACÍ heslo — před ostrým nasazením změnit!
 
-pg_data_dir:    "/usr/local/pgsql/data"
+pg_data_dir: "/usr/local/pgsql/data"
 
 # =============================================================================
 # LabKey konfigurace (application.properties)
@@ -42,7 +57,17 @@ labkey_jvm_max_heap: "4G"
 # =============================================================================
 # R / RStudio Server
 # =============================================================================
-rstudio_deb: "rstudio-server-2023.12.1-402-amd64.deb"   # soubor uložit do files/
+rstudio_deb: "rstudio-server-2024.09.1-394-amd64.deb"   # soubor uložit do files/
+
+# =============================================================================
+# Oracle Instant Client + ROracle
+# Soubory uložit do files/
+# =============================================================================
+oracle_client_dir:           "/opt/oracle"
+oracle_instant_client_dir:   "instantclient_23_6"        # adresář po rozbalení
+oracle_basic_zip:  "instantclient-basic-linux.x64-23.6.0.24.10.zip"
+oracle_sdk_zip:    "instantclient-sdk-linux.x64-23.6.0.24.10.zip"
+roracle_tar:       "ROracle_1.5-0.tar.gz"
 
 # =============================================================================
 # Nginx / SSL

@@ -1,0 +1,50 @@
+---
+# =============================================================================
+# Záloha LabKey — PostgreSQL (pg_dump) + konfigurační soubory
+#
+# Zálohy se ukládají do {{ labkey_backup }}/:
+#   db_YYYYMMDD_HHMMSS.sql.gz   — pg_dump databáze
+#   files_YYYYMMDD_HHMMSS.tar.gz — konfigurace LabKey (bez JAR a modules)
+#
+# Spuštění: ansible-playbook playbooks/backup.yml
+# =============================================================================
+- name: Záloha LabKey
+  hosts: labkey_servers
+  become: true
+
+  vars:
+    backup_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+    backup_db_file:    "db_{{ backup_timestamp }}.sql.gz"
+    backup_files_file: "files_{{ backup_timestamp }}.tar.gz"
+
+  tasks:
+
+    - name: "Backup | Zajištění existence zálohovacího adresáře"
+      file:
+        path: "{{ labkey_backup }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "Backup | pg_dump databáze {{ labkey_db_name }}"
+      command: >
+        bash -c "sudo -u postgres pg_dump {{ labkey_db_name }} | gzip
+        > {{ labkey_backup }}/{{ backup_db_file }}"
+      args:
+        creates: "{{ labkey_backup }}/{{ backup_db_file }}"
+
+    - name: "Backup | Záloha konfiguračních souborů LabKey"
+      archive:
+        path: "{{ labkey_home }}/config"
+        dest: "{{ labkey_backup }}/{{ backup_files_file }}"
+        format: gz
+
+    - name: "Backup | Výpis vytvořených záloh"
+      shell: ls -lh {{ labkey_backup }}/db_{{ backup_timestamp }}* {{ labkey_backup }}/files_{{ backup_timestamp }}*
+      register: backup_listing
+      changed_when: false
+
+    - name: "Backup | Hotovo"
+      debug:
+        msg: "{{ backup_listing.stdout_lines }}"

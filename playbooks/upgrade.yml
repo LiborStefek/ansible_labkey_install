@@ -1,0 +1,102 @@
+---
+# =============================================================================
+# Upgrade LabKey Server na novou verzi
+#
+# Před spuštěním:
+#   1. V group_vars/labkey_servers.yml odkomentovat novou verzi
+#      (labkey_archive + labkey_dist_dir)
+#   2. Nový tarball uložit do files/
+#
+# Upgrade provede zálohu DB, nasadí nový JAR, zachová application.properties.
+# Po upgradu zkontroluj logy: journalctl -u labkey_server -f
+#
+# Spuštění: ansible-playbook playbooks/upgrade.yml
+# =============================================================================
+- name: Upgrade LabKey Server
+  hosts: labkey_servers
+  become: true
+
+  vars:
+    labkey_dist: "{{ labkey_src }}/{{ labkey_dist_dir }}"
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Záloha před upgradem
+  # ===========================================================================
+
+    - name: "Upgrade | Záloha DB před upgradem"
+      vars:
+        backup_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+        backup_db_file: "db_pre_upgrade_{{ backup_timestamp }}.sql.gz"
+      shell: >
+        bash -c "sudo -u postgres pg_dump {{ labkey_db_name }} | gzip
+        > {{ labkey_backup }}/{{ backup_db_file }}"
+      register: backup_result
+
+    - name: "Upgrade | Záloha hotova"
+      debug:
+        msg: "Záloha uložena do {{ labkey_backup }}/"
+
+  # ===========================================================================
+  # 2. Zastavení LabKey
+  # ===========================================================================
+
+    - name: "Upgrade | Zastavení LabKey serveru"
+      service:
+        name: labkey_server
+        state: stopped
+
+    - name: "Upgrade | Smazání lock souboru (pokud existuje)"
+      file:
+        path: "{{ labkey_home }}/labkeyUpgradeLockFile"
+        state: absent
+
+  # ===========================================================================
+  # 3. Nasazení nové verze
+  # ===========================================================================
+
+    - name: "Upgrade | Zkopírování nového LabKey archivu na server"
+      copy:
+        src: "../files/{{ labkey_archive }}"
+        dest: "{{ labkey_src }}/{{ labkey_archive }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Upgrade | Rozbalení nové distribuce do {{ labkey_src }}"
+      unarchive:
+        src: "{{ labkey_src }}/{{ labkey_archive }}"
+        dest: "{{ labkey_src }}"
+        remote_src: true
+        creates: "{{ labkey_dist }}"
+
+    - name: "Upgrade | Nasazení nového labkeyServer.jar"
+      copy:
+        src: "{{ labkey_dist }}/labkeyServer.jar"
+        dest: "{{ labkey_home }}/labkeyServer.jar"
+        owner: "{{ labkey_system_user }}"
+        group: "{{ labkey_system_user }}"
+        mode: "0644"
+        remote_src: true
+
+  # ===========================================================================
+  # 4. Spuštění a kontrola
+  # ===========================================================================
+
+    - name: "Upgrade | Spuštění LabKey serveru"
+      service:
+        name: labkey_server
+        state: started
+
+    - name: "Upgrade | Upozornění po upgradu"
+      debug:
+        msg:
+          - "LabKey byl upgradován na verzi z: {{ labkey_archive }}"
+          - ""
+          - "Zkontroluj logy:  journalctl -u labkey_server -f"
+          - "Zkontroluj stav:  systemctl status labkey_server"
+          - ""
+          - "Poznámka: application.properties nebyl změněn."
+          - "Pokud nová verze vyžaduje nové parametry, doplň je ručně:"
+          - "  {{ labkey_home }}/config/application.properties"

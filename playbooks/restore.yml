@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# Obnova LabKey z pg_dump zálohy
+#
+# Použití:
+#   ansible-playbook playbooks/restore.yml -e backup_db_file=db_20260313_153045.sql.gz
+#
+# Pokud backup_db_file není zadán, zobrazí dostupné zálohy a skončí.
+# POZOR: Provede DROP a CREATE databáze — všechna stávající data budou ztracena.
+# =============================================================================
+- name: Obnova LabKey z zálohy
+  hosts: labkey_servers
+  become: true
+
+  tasks:
+
+    - name: "Restore | Výpis dostupných záloh"
+      shell: ls -lht {{ labkey_backup }}/db_*.sql.gz 2>/dev/null || echo "(žádné zálohy nenalezeny)"
+      register: available_backups
+      changed_when: false
+      when: backup_db_file is not defined
+
+    - name: "Restore | Zobrazení dostupných záloh"
+      debug:
+        msg: |
+          Dostupné zálohy v {{ labkey_backup }}/:
+          {{ available_backups.stdout }}
+
+          Spusť znovu s parametrem:
+            -e backup_db_file=<název souboru>
+      when: backup_db_file is not defined
+
+    - name: "Restore | Ukončení bez zadaného souboru"
+      meta: end_play
+      when: backup_db_file is not defined
+
+    - name: "Restore | Potvrzení obnovy"
+      pause:
+        prompt: >
+          POZOR: Databáze '{{ labkey_db_name }}' bude přepsána zálohou
+          {{ labkey_backup }}/{{ backup_db_file }}.
+          Všechna aktuální data budou ztracena.
+          Pro pokračování stiskni ENTER, pro zrušení Ctrl+C.
+
+    - name: "Restore | Zastavení LabKey"
+      service:
+        name: labkey_server
+        state: stopped
+
+    - name: "Restore | Kontrola existence zálohy"
+      stat:
+        path: "{{ labkey_backup }}/{{ backup_db_file }}"
+      register: backup_stat
+
+    - name: "Restore | Chyba — záloha nenalezena"
+      fail:
+        msg: "Soubor {{ labkey_backup }}/{{ backup_db_file }} neexistuje."
+      when: not backup_stat.stat.exists
+
+    - name: "Restore | Smazání databáze"
+      command: sudo -u postgres psql -c "DROP DATABASE IF EXISTS {{ labkey_db_name }};"
+
+    - name: "Restore | Smazání DB uživatele"
+      command: sudo -u postgres psql -c "DROP USER IF EXISTS {{ labkey_db_user }};"
+
+    - name: "Restore | Vytvoření DB uživatele"
+      command: sudo -u postgres psql -c "CREATE USER {{ labkey_db_user }} PASSWORD '{{ labkey_db_pass }}';"
+
+    - name: "Restore | Vytvoření prázdné databáze"
+      command: sudo -u postgres psql -c "CREATE DATABASE {{ labkey_db_name }} WITH OWNER {{ labkey_db_user }};"
+
+    - name: "Restore | Odebrání přístupu pro public"
+      command: sudo -u postgres psql -c "REVOKE ALL ON DATABASE {{ labkey_db_name }} FROM public;"
+
+    - name: "Restore | Import zálohy do databáze"
+      shell: "zcat {{ labkey_backup }}/{{ backup_db_file }} | sudo -u postgres psql {{ labkey_db_name }}"
+
+    - name: "Restore | Smazání lock souboru (pokud existuje)"
+      file:
+        path: "{{ labkey_home }}/labkeyUpgradeLockFile"
+        state: absent
+
+    - name: "Restore | Spuštění LabKey"
+      service:
+        name: labkey_server
+        state: started
+
+    - name: "Restore | Hotovo"
+      debug:
+        msg: "Databáze obnovena ze zálohy {{ backup_db_file }}. LabKey byl spuštěn."

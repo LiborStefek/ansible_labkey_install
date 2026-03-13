@@ -1,0 +1,124 @@
+---
+# =============================================================================
+# Nastavení prostředí na cílovém serveru
+#
+# Nasadí:
+#   /etc/profile.d/labkey_env.sh  — LABKEY_HOME, JAVA_HOME, aliasy,
+#                                   login info pro členy skupiny labkey
+#   {{ labkey_admin }}/           — administrační skripty
+#
+# Spuštění: ansible-playbook playbooks/profile.yml
+# =============================================================================
+- name: Nastavení prostředí a administračních skriptů
+  hosts: labkey_servers
+  become: true
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Skupina labkey
+  # ===========================================================================
+
+    - name: "Profil | Vytvoření skupiny labkey (pokud neexistuje)"
+      group:
+        name: labkey
+        state: present
+
+  # ===========================================================================
+  # 2. profile.d
+  # ===========================================================================
+
+    - name: "Profil | Nasazení /etc/profile.d/labkey_env.sh"
+      template:
+        src: "../templates/profile.d/labkey_env.sh.j2"
+        dest: /etc/profile.d/labkey_env.sh
+        owner: root
+        group: root
+        mode: "0644"
+
+  # ===========================================================================
+  # 3. Administrační skripty
+  # ===========================================================================
+
+    - name: "Admin | Vytvoření adresáře {{ labkey_admin }}"
+      file:
+        path: "{{ labkey_admin }}"
+        state: directory
+        owner: root
+        group: labkey
+        mode: "0750"
+
+    - name: "Admin | Nasazení backup skriptu"
+      copy:
+        dest: "{{ labkey_admin }}/backup.sh"
+        owner: root
+        group: labkey
+        mode: "0750"
+        content: |
+          #!/bin/bash
+          # Záloha LabKey — pg_dump + konfigurace
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_DIR="{{ labkey_backup }}"
+
+          echo "Záloha DB..."
+          sudo -u postgres pg_dump {{ labkey_db_name }} | gzip > "$BACKUP_DIR/db_${TIMESTAMP}.sql.gz"
+          echo "  → $BACKUP_DIR/db_${TIMESTAMP}.sql.gz"
+
+          echo "Záloha konfigurace..."
+          tar czf "$BACKUP_DIR/files_${TIMESTAMP}.tar.gz" -C {{ labkey_home }} config/
+          echo "  → $BACKUP_DIR/files_${TIMESTAMP}.tar.gz"
+
+          echo "Hotovo. Zálohy:"
+          ls -lh "$BACKUP_DIR/db_${TIMESTAMP}"* "$BACKUP_DIR/files_${TIMESTAMP}"*
+
+    - name: "Admin | Nasazení restart skriptu"
+      copy:
+        dest: "{{ labkey_admin }}/restart.sh"
+        owner: root
+        group: labkey
+        mode: "0750"
+        content: |
+          #!/bin/bash
+          echo "Restart LabKey serveru..."
+          sudo systemctl restart labkey_server
+          sleep 5
+          sudo systemctl status labkey_server --no-pager
+
+    - name: "Admin | Nasazení status skriptu"
+      copy:
+        dest: "{{ labkey_admin }}/status.sh"
+        owner: root
+        group: labkey
+        mode: "0750"
+        content: |
+          #!/bin/bash
+          echo "=== LabKey Server ==="
+          sudo systemctl status labkey_server --no-pager
+          echo ""
+          echo "=== PostgreSQL ==="
+          sudo systemctl status postgresql --no-pager
+          echo ""
+          echo "=== Nginx ==="
+          sudo systemctl status nginx --no-pager 2>/dev/null || echo "(nginx nenainstalován)"
+          echo ""
+          echo "=== Poslední zálohy ==="
+          ls -lht {{ labkey_backup }}/db_*.sql.gz 2>/dev/null | head -5 || echo "(žádné zálohy)"
+
+    - name: "Admin | Nasazení log skriptu"
+      copy:
+        dest: "{{ labkey_admin }}/log.sh"
+        owner: root
+        group: labkey
+        mode: "0750"
+        content: |
+          #!/bin/bash
+          # Zobrazí log LabKey — výchozí: posledních 50 řádků
+          # Parametry: log.sh -f  (follow)  |  log.sh -n 100 (počet řádků)
+          LOG="{{ labkey_home }}/logs/labkey.log"
+          if [ "$1" = "-f" ]; then
+              tail -f "$LOG"
+          elif [ "$1" = "-n" ] && [ -n "$2" ]; then
+              tail -n "$2" "$LOG"
+          else
+              tail -n 50 "$LOG"
+          fi

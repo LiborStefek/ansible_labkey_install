@@ -1,0 +1,126 @@
+---
+# =============================================================================
+# Oracle Instant Client + ROracle
+#
+# Předpoklady — soubory uložit do files/:
+#   {{ oracle_basic_zip }}   — Oracle Instant Client Basic
+#   {{ oracle_sdk_zip }}     — Oracle Instant Client SDK (hlavičky pro kompilaci)
+#   {{ roracle_tar }}        — ROracle zdrojový balíček
+#
+# Stažení z: https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html
+#
+# Spuštění: ansible-playbook playbooks/oracle.yml
+# =============================================================================
+- name: Oracle Instant Client + ROracle
+  hosts: labkey_servers
+  become: true
+
+  vars:
+    oracle_ic_path: "{{ oracle_client_dir }}/{{ oracle_instant_client_dir }}"
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Systémové závislosti
+  # ===========================================================================
+
+    - name: "Oracle | Instalace systémových závislostí"
+      apt:
+        name:
+          - libaio1
+          - unzip
+        state: present
+        update_cache: true
+
+  # ===========================================================================
+  # 2. Oracle Instant Client
+  # ===========================================================================
+
+    - name: "Oracle | Vytvoření adresáře {{ oracle_client_dir }}"
+      file:
+        path: "{{ oracle_client_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "Oracle | Zkopírování Oracle Basic zip na server"
+      copy:
+        src: "../files/{{ oracle_basic_zip }}"
+        dest: "/tmp/{{ oracle_basic_zip }}"
+        mode: "0644"
+
+    - name: "Oracle | Zkopírování Oracle SDK zip na server"
+      copy:
+        src: "../files/{{ oracle_sdk_zip }}"
+        dest: "/tmp/{{ oracle_sdk_zip }}"
+        mode: "0644"
+
+    - name: "Oracle | Rozbalení Oracle Basic"
+      unarchive:
+        src: "/tmp/{{ oracle_basic_zip }}"
+        dest: "{{ oracle_client_dir }}"
+        remote_src: true
+        creates: "{{ oracle_ic_path }}"
+
+    - name: "Oracle | Rozbalení Oracle SDK"
+      unarchive:
+        src: "/tmp/{{ oracle_sdk_zip }}"
+        dest: "{{ oracle_client_dir }}"
+        remote_src: true
+        creates: "{{ oracle_ic_path }}/sdk"
+
+    - name: "Oracle | Smazání dočasných zip souborů"
+      file:
+        path: "/tmp/{{ item }}"
+        state: absent
+      loop:
+        - "{{ oracle_basic_zip }}"
+        - "{{ oracle_sdk_zip }}"
+
+    - name: "Oracle | Konfigurace dynamického linkeru (ld.so.conf)"
+      copy:
+        content: "{{ oracle_ic_path }}\n"
+        dest: /etc/ld.so.conf.d/oracle-instantclient.conf
+        mode: "0644"
+      notify: ldconfig
+
+    - name: "Oracle | Nastavení proměnných prostředí v /etc/profile.d/"
+      copy:
+        dest: /etc/profile.d/oracle_client.sh
+        mode: "0644"
+        content: |
+          # Oracle Instant Client
+          export ORACLE_HOME={{ oracle_ic_path }}
+          export LD_LIBRARY_PATH={{ oracle_ic_path }}:$LD_LIBRARY_PATH
+          export PATH=$PATH:{{ oracle_ic_path }}
+
+  # ===========================================================================
+  # 3. ROracle
+  # ===========================================================================
+
+    - name: "ROracle | Zkopírování zdrojového balíčku na server"
+      copy:
+        src: "../files/{{ roracle_tar }}"
+        dest: "/tmp/{{ roracle_tar }}"
+        mode: "0644"
+
+    - name: "ROracle | Instalace (R CMD INSTALL)"
+      shell: >
+        OCI_LIB={{ oracle_ic_path }}
+        OCI_INC={{ oracle_ic_path }}/sdk/include
+        R CMD INSTALL /tmp/{{ roracle_tar }}
+      args:
+        creates: "/usr/local/lib/R/site-library/ROracle"
+
+    - name: "ROracle | Smazání dočasného souboru"
+      file:
+        path: "/tmp/{{ roracle_tar }}"
+        state: absent
+
+  # ===========================================================================
+  # Handlery
+  # ===========================================================================
+  handlers:
+    - name: ldconfig
+      command: ldconfig

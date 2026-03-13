@@ -1,0 +1,77 @@
+# LabKey Server — prostředí a administrace
+# Nasazeno Ansiblem, neupravovat ručně.
+
+export LABKEY_HOME="{{ labkey_home }}"
+export JAVA_HOME="/usr/local/java"
+export PATH="$PATH:$JAVA_HOME/bin"
+
+# Pouze pro členy skupiny labkey
+if id -nG "$USER" | grep -qw "labkey"; then
+
+    # Cesta k administračním skriptům
+    export PATH="$PATH:{{ labkey_admin }}"
+
+    # -----------------------------------------------------------------------
+    # Aliasy pro správu LabKey serveru
+    # -----------------------------------------------------------------------
+    alias lks='sudo systemctl status labkey_server'
+    alias lkr='sudo systemctl start  labkey_server'
+    alias lkk='sudo systemctl stop   labkey_server'
+    alias lkrs='sudo systemctl restart labkey_server'
+    alias lkl='tail -f {{ labkey_home }}/logs/labkey.log'
+    alias lklog='less {{ labkey_home }}/logs/labkey.log'
+    alias lkps='sudo -u postgres psql -d {{ labkey_db_name }}'
+    alias lkbackup='ansible-playbook {{ labkey_admin }}/backup.yml 2>/dev/null || backup.sh'
+
+    # -----------------------------------------------------------------------
+    # Informace o instalaci při přihlášení
+    # -----------------------------------------------------------------------
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║              LabKey Server — administrace                    ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+
+    # Stav služby
+    _lk_status=$(systemctl is-active labkey_server 2>/dev/null)
+    case "$_lk_status" in
+        active)   _lk_status_str="✓ běží (active)" ;;
+        inactive) _lk_status_str="✗ zastaven (inactive)" ;;
+        failed)   _lk_status_str="✗ chyba (failed)" ;;
+        *)        _lk_status_str="? $_lk_status" ;;
+    esac
+    printf "║  Služba:       %-46s ║\n" "$_lk_status_str"
+
+    # Počet řádků logu dnes / tento týden
+    _lk_log="{{ labkey_home }}/logs/labkey.log"
+    if [ -f "$_lk_log" ]; then
+        _today=$(date +%Y-%m-%d)
+        _log_today=$(grep -c "$_today" "$_lk_log" 2>/dev/null || echo 0)
+        _log_week=$(find {{ labkey_home }}/logs/ -name "*.log" -mtime -7 \
+                    -exec cat {} \; 2>/dev/null | wc -l)
+        printf "║  Log dnes:     %-46s ║\n" "$_log_today řádků"
+        printf "║  Log týden:    %-46s ║\n" "$_log_week řádků"
+    else
+        printf "║  Log:          %-46s ║\n" "(soubor nenalezen)"
+    fi
+
+    # Datum poslední zálohy DB
+    _last_backup=$(ls -t {{ labkey_backup }}/db_*.sql.gz 2>/dev/null | head -1)
+    if [ -n "$_last_backup" ]; then
+        _backup_info=$(ls -la "$_last_backup" | awk '{print $6, $7, $8}')
+        _backup_name=$(basename "$_last_backup")
+        printf "║  Záloha DB:    %-46s ║\n" "$_backup_info"
+        printf "║               (%-45s)║\n" "$_backup_name"
+    else
+        printf "║  Záloha DB:    %-46s ║\n" "(žádná záloha nenalezena)"
+    fi
+
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Aliasy:  lks=status  lkr=start  lkk=stop  lkrs=restart    ║"
+    echo "║           lkl=log     lklog=less lkps=psql                  ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    unset _lk_status _lk_status_str _lk_log _today _log_today _log_week
+    unset _last_backup _backup_info _backup_name
+
+fi
