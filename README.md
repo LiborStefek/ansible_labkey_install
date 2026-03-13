@@ -85,9 +85,11 @@ ssh-copy-id -i ~/.ssh/id_ed25519 uživatel@<IP adresa>
 # Test konektivity a sudo
 ansible-playbook playbooks/ping.yml
 
-# Plná instalace LabKey
-ansible-playbook playbooks/install.yml
+# Kompletní instalace (vše najednou)
+ansible-playbook playbooks/install.yml playbooks/ssl.yml playbooks/rstudio.yml playbooks/oracle.yml playbooks/profile.yml
 ```
+
+Jednotlivé playboky lze spouštět i samostatně — viz sekce níže.
 
 ### Čistá reinstalace (smazání dat)
 
