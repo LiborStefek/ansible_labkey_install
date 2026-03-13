@@ -64,9 +64,9 @@ rstudio_deb: "rstudio-server-2024.09.1-394-amd64.deb"   # soubor uložit do file
 # Soubory uložit do files/
 # =============================================================================
 oracle_client_dir:           "/opt/oracle"
-oracle_instant_client_dir:   "instantclient_23_6"        # adresář po rozbalení
-oracle_basic_zip:  "instantclient-basic-linux.x64-23.6.0.24.10.zip"
-oracle_sdk_zip:    "instantclient-sdk-linux.x64-23.6.0.24.10.zip"
+oracle_instant_client_dir:   "instantclient_23_26"       # adresář po rozbalení
+oracle_basic_zip:  "instantclient-basic-linux.x64-23.26.1.0.0.zip"
+oracle_sdk_zip:    "instantclient-sdk-linux.x64-23.26.1.0.0.zip"
 roracle_tar:       "ROracle_1.3-1.1.tar.gz"
 
 # =============================================================================
