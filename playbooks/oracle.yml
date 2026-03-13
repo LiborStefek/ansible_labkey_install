@@ -99,6 +99,14 @@
   # 3. ROracle
   # ===========================================================================
 
+    - name: "Oracle | Aktualizace cache dynamického linkeru"
+      command: ldconfig
+
+    - name: "ROracle | Instalace závislosti DBI"
+      apt:
+        name: r-cran-dbi
+        state: present
+
     - name: "ROracle | Zkopírování zdrojového balíčku na server"
       copy:
         src: "../files/{{ roracle_tar }}"

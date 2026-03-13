@@ -12,12 +12,16 @@
   hosts: labkey_servers
   become: true
 
-  vars:
-    backup_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
-    backup_db_file:    "db_{{ backup_timestamp }}.sql.gz"
-    backup_files_file: "files_{{ backup_timestamp }}.tar.gz"
-
   tasks:
+
+    - name: "Backup | Zachycení časového razítka"
+      set_fact:
+        backup_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+    - name: "Backup | Sestavení názvů souborů zálohy"
+      set_fact:
+        backup_db_file:    "db_{{ backup_timestamp }}.sql.gz"
+        backup_files_file: "files_{{ backup_timestamp }}.tar.gz"
 
     - name: "Backup | Zajištění existence zálohovacího adresáře"
       file:
@@ -28,11 +32,12 @@
         mode: "0755"
 
     - name: "Backup | pg_dump databáze {{ labkey_db_name }}"
-      command: >
-        bash -c "sudo -u postgres pg_dump {{ labkey_db_name }} | gzip
-        > {{ labkey_backup }}/{{ backup_db_file }}"
+      shell: >
+        set -o pipefail &&
+        sudo -u postgres pg_dump {{ labkey_db_name }} | gzip
+        > {{ labkey_backup }}/{{ backup_db_file }}
       args:
-        creates: "{{ labkey_backup }}/{{ backup_db_file }}"
+        executable: /bin/bash
 
     - name: "Backup | Záloha konfiguračních souborů LabKey"
       archive:
