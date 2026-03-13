@@ -122,3 +122,16 @@
           else
               tail -n 50 "$LOG"
           fi
+
+  # ===========================================================================
+  # 4. Cron — automatická záloha
+  # ===========================================================================
+
+    - name: "Cron | Denní záloha LabKey (02:00)"
+      cron:
+        name: "LabKey denní záloha"
+        hour: "2"
+        minute: "0"
+        job: "{{ labkey_admin }}/backup.sh >> /var/log/labkey_backup.log 2>&1"
+        user: root
+        state: present
