@@ -48,11 +48,34 @@ pg_data_dir: "/usr/local/pgsql/data"
 # =============================================================================
 labkey_encryption_key: "changeme32charslongkey12345678"  # přesně 32 znaků
 
+# Veřejná URL serveru — nutné pro správné generování odkazů v emailech
+labkey_base_server_url: "https://{{ labkey_hostname }}"
+
+# Branding
+labkey_company_name:      ""   # např. "FN Ostrava" (prázdné = LabKey výchozí)
+labkey_system_short_name: ""   # např. "SDMS" (prázdné = LabKey výchozí)
+labkey_system_email:      ""   # odesílací adresa systémových emailů
+
+# =============================================================================
+# SMTP (odchozí pošta)
+# =============================================================================
+labkey_smtp_host:     ""       # např. "smtp.fno.cz"
+labkey_smtp_port:     "25"
+labkey_smtp_from:     ""       # např. "labkey@fno.cz"
+labkey_smtp_user:     ""       # prázdné = bez autentizace
+labkey_smtp_password: ""
+labkey_smtp_auth:     "FALSE"
+labkey_smtp_starttls: "FALSE"
+
 # =============================================================================
 # JVM paměť
+# Prázdné hodnoty = automatický výpočet z dostupné RAM (doporučeno):
+#   RAM > 8 GB → Xmx = 75 % RAM,  jinak Xmx = 50 % RAM
+#   Xms = 50 % Xmx
+# Chcete-li přepsat ručně, zadejte hodnoty např. "2G" / "4G".
 # =============================================================================
-labkey_jvm_min_heap: "2G"
-labkey_jvm_max_heap: "4G"
+labkey_jvm_min_heap: ""
+labkey_jvm_max_heap: ""
 
 # =============================================================================
 # R / RStudio Server

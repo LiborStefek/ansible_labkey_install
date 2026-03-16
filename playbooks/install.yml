@@ -229,6 +229,83 @@
         regexp: '^server\.port='
         line: "server.port={{ labkey_port }}"
 
+    - name: "Konfig | Nastavení baseServerURL"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^SiteSettings\.baseServerURL='
+        line: "SiteSettings.baseServerURL={{ labkey_base_server_url }}"
+
+    - name: "Konfig | Nastavení názvu organizace"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^LookAndFeelSettings\.companyName='
+        line: "LookAndFeelSettings.companyName={{ labkey_company_name }}"
+      when: labkey_company_name != ""
+
+    - name: "Konfig | Nastavení krátkého názvu systému"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^LookAndFeelSettings\.systemShortName='
+        line: "LookAndFeelSettings.systemShortName={{ labkey_system_short_name }}"
+      when: labkey_system_short_name != ""
+
+    - name: "Konfig | Nastavení systémové emailové adresy"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^LookAndFeelSettings\.systemEmailAddress='
+        line: "LookAndFeelSettings.systemEmailAddress={{ labkey_system_email }}"
+      when: labkey_system_email != ""
+
+    - name: "Konfig | SMTP — host"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpHost='
+        line: "mail.smtpHost={{ labkey_smtp_host }}"
+      when: labkey_smtp_host != ""
+
+    - name: "Konfig | SMTP — port"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpPort='
+        line: "mail.smtpPort={{ labkey_smtp_port }}"
+      when: labkey_smtp_host != ""
+
+    - name: "Konfig | SMTP — from adresa"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpFrom='
+        line: "mail.smtpFrom={{ labkey_smtp_from }}"
+      when: labkey_smtp_from != ""
+
+    - name: "Konfig | SMTP — uživatel"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpUser='
+        line: "mail.smtpUser={{ labkey_smtp_user }}"
+      when: labkey_smtp_user != ""
+
+    - name: "Konfig | SMTP — heslo"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpPassword='
+        line: "mail.smtpPassword={{ labkey_smtp_password }}"
+      no_log: true
+      when: labkey_smtp_password != ""
+
+    - name: "Konfig | SMTP — auth"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpAuth='
+        line: "mail.smtpAuth={{ labkey_smtp_auth }}"
+      when: labkey_smtp_host != ""
+
+    - name: "Konfig | SMTP — STARTTLS"
+      lineinfile:
+        path: "{{ labkey_home }}/config/application.properties"
+        regexp: '^mail\.smtpStartTlsEnable='
+        line: "mail.smtpStartTlsEnable={{ labkey_smtp_starttls }}"
+      when: labkey_smtp_host != ""
+
   # ===========================================================================
   # 8. Systemd service
   # ===========================================================================
@@ -270,10 +347,7 @@
           - " 2. FIREWALL — otevřít port 80 (nebo jiný, dle server.port)"
           - "    v application.properties"
           - ""
-          - " 3. SMTP — nakonfigurovat v application.properties:"
-          - "    {{ labkey_home }}/config/application.properties"
-          - ""
-          - " 4. ZÁLOHOVÁNÍ — nastavit zálohy PostgreSQL a {{ labkey_home }}"
+          - " 3. ZÁLOHOVÁNÍ — nastavit zálohy PostgreSQL a {{ labkey_home }}"
           - ""
           - " Stav služby: systemctl status labkey_server"
           - " Logy:        journalctl -u labkey_server -f"

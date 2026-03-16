@@ -9,9 +9,25 @@ Environment="LABKEY_HOME={{ labkey_home }}"
 WorkingDirectory={{ labkey_home }}
 OOMScoreAdjust=-500
 
+{# Výpočet heap: pokud není ručně nastaveno, počítá se z RAM.
+   RAM > 8 GB → max = 75 % RAM, jinak max = 50 % RAM.
+   Min heap = polovina max heap. #}
+{% set _ram_mb = ansible_memtotal_mb %}
+{% if labkey_jvm_max_heap != "" %}
+{% set _max_heap = labkey_jvm_max_heap %}
+{% elif _ram_mb > 8192 %}
+{% set _max_heap = ((_ram_mb * 0.75) | int | string) + "M" %}
+{% else %}
+{% set _max_heap = ((_ram_mb * 0.50) | int | string) + "M" %}
+{% endif %}
+{% if labkey_jvm_min_heap != "" %}
+{% set _min_heap = labkey_jvm_min_heap %}
+{% else %}
+{% set _min_heap = ((_max_heap | regex_replace('[^0-9]', '') | int // 2) | string) + "M" %}
+{% endif %}
 ExecStart=/usr/local/java/bin/java \
-    -Xms{{ labkey_jvm_min_heap }} \
-    -Xmx{{ labkey_jvm_max_heap }} \
+    -Xms{{ _min_heap }} \
+    -Xmx{{ _max_heap }} \
     -XX:+HeapDumpOnOutOfMemoryError \
     -Djava.io.tmpdir={{ labkey_home }}/labkey-tmp \
     -Dorg.apache.catalina.startup.EXIT_ON_INIT_FAILURE=true \
