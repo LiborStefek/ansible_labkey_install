@@ -1,16 +1,16 @@
 # ansible_labkey_install
 
-Ansible playbook pro automatizovanou instalaci **LabKey Server v24+** (embedded) na Debian.
+Ansible playbook pro automatizovanou instalaci **LabKey Server v24+** na Debian.
 
 ## Architektura
 
 ```
-Klient → nginx:443 (SSL, certifikát od lokální CA)
+Klient → nginx:443 (SSL, certifikát)
               ↓
          LabKey:8080 (plain HTTP, interní)
 ```
 
-Nginx zajišťuje SSL terminaci a přesměrování HTTP→HTTPS. LabKey běží pouze interně na portu 8080.
+Nginx zajišťuje SSL a přesměrování HTTP→HTTPS. LabKey tomcat běží pouze interně na portu 8080.
 
 ## Požadavky
 
@@ -101,7 +101,7 @@ ansible-playbook playbooks/drop-db.yml
 ansible-playbook playbooks/install.yml
 ```
 
-### HTTPS (po obdržení certifikátu od správce sítě)
+### HTTPS (certifikát ve formátu PEM)
 
 1. Uložit certifikát a klíč do `files/`:
    ```
@@ -255,7 +255,7 @@ systemctl restart rstudio-server
 
 ## Před ostrým nasazením
 
-1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, poté znovu spustit `install.yml`
+1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, až poté spustit `install.yml`
 2. **SMTP** — nakonfigurovat v `/labkey/labkey/config/application.properties`
 3. **Firewall** — otevřít porty 80 a 443, porty 8080 a 8787 ponechat pouze lokálně dostupné
 4. **Zálohování** — nastavit zálohy PostgreSQL a adresáře `/labkey/labkey/`
