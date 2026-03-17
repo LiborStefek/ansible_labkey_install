@@ -32,7 +32,7 @@ labkey_apps:        "/labkey/apps"
 labkey_backup:      "/labkey/backupArchive"
 labkey_admin:       "/labkey/admin"
 
-labkey_system_user: "labkey"
+labkey_system_user: "labkeysvc"   # "labkey" koliduje s AD doménovým účtem labkey@fno.cz
 
 # =============================================================================
 # PostgreSQL

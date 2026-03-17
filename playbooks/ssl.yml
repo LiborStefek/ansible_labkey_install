@@ -18,11 +18,22 @@
   # 1. Nginx
   # ===========================================================================
 
+    - name: "Nginx | Zakázání automatického startu služeb během apt (IPv6 chybí)"
+      copy:
+        content: "exit 101\n"
+        dest: /usr/sbin/policy-rc.d
+        mode: "0755"
+
     - name: "Nginx | Instalace"
       apt:
         name: nginx
         state: present
         update_cache: true
+
+    - name: "Nginx | Obnovení automatického startu služeb"
+      file:
+        path: /usr/sbin/policy-rc.d
+        state: absent
 
   # ===========================================================================
   # 2. SSL certifikát a klíč

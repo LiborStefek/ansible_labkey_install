@@ -113,18 +113,31 @@
         dest: "/tmp/{{ roracle_tar }}"
         mode: "0644"
 
+    - name: "ROracle | Rozbalení a vytvoření src/Makevars s cestami Oracle"
+      shell: |
+        rm -rf /tmp/ROracle
+        tar xzf /tmp/{{ roracle_tar }} -C /tmp/
+        mv /tmp/ROracle/configure /tmp/ROracle/configure.orig
+        cat > /tmp/ROracle/src/Makevars <<'EOF'
+        PKG_CFLAGS=-I{{ oracle_ic_path }}/sdk/include
+        PKG_LIBS=-L{{ oracle_ic_path }} -lclntsh
+        EOF
+
     - name: "ROracle | Instalace (R CMD INSTALL)"
       shell: >
         OCI_LIB={{ oracle_ic_path }}
         OCI_INC={{ oracle_ic_path }}/sdk/include
-        R CMD INSTALL /tmp/{{ roracle_tar }}
+        R CMD INSTALL /tmp/ROracle/
       args:
         creates: "/usr/local/lib/R/site-library/ROracle"
 
-    - name: "ROracle | Smazání dočasného souboru"
+    - name: "ROracle | Smazání dočasných souborů"
       file:
-        path: "/tmp/{{ roracle_tar }}"
+        path: "{{ item }}"
         state: absent
+      loop:
+        - "/tmp/{{ roracle_tar }}"
+        - "/tmp/ROracle"
 
   # ===========================================================================
   # Handlery
