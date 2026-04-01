@@ -67,33 +67,21 @@
       set_fact:
         effective_jdk_archive: "{{ jdk25_archive }}"
         effective_jdk_dir:     "{{ jdk25_dir }}"
-        effective_jdk_url:     "{{ jdk25_url }}"
       when: _labkey_version is version('25.11', '>')
 
     - name: "Java | Výběr JDK 17 (LabKey ≤ 25.11)"
       set_fact:
         effective_jdk_archive: "{{ jdk_archive }}"
         effective_jdk_dir:     "{{ jdk_dir }}"
-        effective_jdk_url:     ""
       when: not (_labkey_version is version('25.11', '>'))
 
-    - name: "Java | Stažení JDK 25 z internetu"
-      get_url:
-        url:  "{{ effective_jdk_url }}"
-        dest: "{{ labkey_apps }}/{{ effective_jdk_archive }}"
-        owner: root
-        group: root
-        mode: "0644"
-      when: effective_jdk_url != ""
-
-    - name: "Java | Zkopírování JDK 17 archivu na server (z files/)"
+    - name: "Java | Zkopírování JDK archivu na server (z files/)"
       copy:
         src: "../files/{{ effective_jdk_archive }}"
         dest: "{{ labkey_apps }}/{{ effective_jdk_archive }}"
         owner: root
         group: root
         mode: "0644"
-      when: effective_jdk_url == ""
 
     - name: "Java | Rozbalení JDK do {{ labkey_apps }}"
       unarchive:

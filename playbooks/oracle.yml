@@ -1,17 +1,15 @@
 ---
 # =============================================================================
-# Oracle Instant Client + ROracle
+# Oracle Instant Client
 #
 # Předpoklady — soubory uložit do files/:
 #   {{ oracle_basic_zip }}   — Oracle Instant Client Basic
-#   {{ oracle_sdk_zip }}     — Oracle Instant Client SDK (hlavičky pro kompilaci)
-#   {{ roracle_tar }}        — ROracle zdrojový balíček
 #
 # Stažení z: https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html
 #
 # Spuštění: ansible-playbook playbooks/oracle.yml
 # =============================================================================
-- name: Oracle Instant Client + ROracle
+- name: Oracle Instant Client
   hosts: labkey_servers
   become: true
 
@@ -50,12 +48,6 @@
         dest: "/tmp/{{ oracle_basic_zip }}"
         mode: "0644"
 
-    - name: "Oracle | Zkopírování Oracle SDK zip na server"
-      copy:
-        src: "../files/{{ oracle_sdk_zip }}"
-        dest: "/tmp/{{ oracle_sdk_zip }}"
-        mode: "0644"
-
     - name: "Oracle | Rozbalení Oracle Basic"
       unarchive:
         src: "/tmp/{{ oracle_basic_zip }}"
@@ -63,27 +55,19 @@
         remote_src: true
         creates: "{{ oracle_ic_path }}"
 
-    - name: "Oracle | Rozbalení Oracle SDK"
-      unarchive:
-        src: "/tmp/{{ oracle_sdk_zip }}"
-        dest: "{{ oracle_client_dir }}"
-        remote_src: true
-        creates: "{{ oracle_ic_path }}/sdk"
-
-    - name: "Oracle | Smazání dočasných zip souborů"
+    - name: "Oracle | Smazání dočasného zip souboru"
       file:
-        path: "/tmp/{{ item }}"
+        path: "/tmp/{{ oracle_basic_zip }}"
         state: absent
-      loop:
-        - "{{ oracle_basic_zip }}"
-        - "{{ oracle_sdk_zip }}"
 
     - name: "Oracle | Konfigurace dynamického linkeru (ld.so.conf)"
       copy:
         content: "{{ oracle_ic_path }}\n"
         dest: /etc/ld.so.conf.d/oracle-instantclient.conf
         mode: "0644"
-      notify: ldconfig
+
+    - name: "Oracle | Aktualizace cache dynamického linkeru"
+      command: ldconfig
 
     - name: "Oracle | Nastavení proměnných prostředí v /etc/profile.d/"
       copy:
@@ -94,54 +78,3 @@
           export ORACLE_HOME={{ oracle_ic_path }}
           export LD_LIBRARY_PATH={{ oracle_ic_path }}:$LD_LIBRARY_PATH
           export PATH=$PATH:{{ oracle_ic_path }}
-
-  # ===========================================================================
-  # 3. ROracle
-  # ===========================================================================
-
-    - name: "Oracle | Aktualizace cache dynamického linkeru"
-      command: ldconfig
-
-    - name: "ROracle | Instalace závislosti DBI"
-      apt:
-        name: r-cran-dbi
-        state: present
-
-    - name: "ROracle | Zkopírování zdrojového balíčku na server"
-      copy:
-        src: "../files/{{ roracle_tar }}"
-        dest: "/tmp/{{ roracle_tar }}"
-        mode: "0644"
-
-    - name: "ROracle | Rozbalení a vytvoření src/Makevars s cestami Oracle"
-      shell: |
-        rm -rf /tmp/ROracle
-        tar xzf /tmp/{{ roracle_tar }} -C /tmp/
-        mv /tmp/ROracle/configure /tmp/ROracle/configure.orig
-        cat > /tmp/ROracle/src/Makevars <<'EOF'
-        PKG_CFLAGS=-I{{ oracle_ic_path }}/sdk/include
-        PKG_LIBS=-L{{ oracle_ic_path }} -lclntsh
-        EOF
-
-    - name: "ROracle | Instalace (R CMD INSTALL)"
-      shell: >
-        OCI_LIB={{ oracle_ic_path }}
-        OCI_INC={{ oracle_ic_path }}/sdk/include
-        R CMD INSTALL /tmp/ROracle/
-      args:
-        creates: "/usr/local/lib/R/site-library/ROracle"
-
-    - name: "ROracle | Smazání dočasných souborů"
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "/tmp/{{ roracle_tar }}"
-        - "/tmp/ROracle"
-
-  # ===========================================================================
-  # Handlery
-  # ===========================================================================
-  handlers:
-    - name: ldconfig
-      command: ldconfig

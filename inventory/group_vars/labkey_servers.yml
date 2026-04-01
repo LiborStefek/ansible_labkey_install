@@ -8,9 +8,9 @@ jdk_archive: "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
 jdk_dir:     "jdk-17.0.18+8"                 # adresář uvnitř archivu
 
 # JDK 25 (Temurin) — použije se automaticky pokud labkey_version > 25.11
+# Tarball stáhnout předem z https://adoptium.net a uložit do files/
 jdk25_archive: "OpenJDK25U-jdk_x64_linux_hotspot_25.0.2_10.tar.gz"
 jdk25_dir:     "jdk-25.0.2+10"
-jdk25_url:     "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_x64_linux_hotspot_25.0.2_10.tar.gz"
 
 # =============================================================================
 # LabKey verze — odkomentovat požadovanou verzi, ostatní zakomentovat
@@ -90,14 +90,12 @@ labkey_jvm_max_heap: ""
 rstudio_deb: "rstudio-server-2024.09.1-394-amd64.deb"   # soubor uložit do files/
 
 # =============================================================================
-# Oracle Instant Client + ROracle
+# Oracle Instant Client
 # Soubory uložit do files/
 # =============================================================================
 oracle_client_dir:           "/opt/oracle"
 oracle_instant_client_dir:   "instantclient_23_26"       # adresář po rozbalení
 oracle_basic_zip:  "instantclient-basic-linux.x64-23.26.1.0.0.zip"
-oracle_sdk_zip:    "instantclient-sdk-linux.x64-23.26.1.0.0.zip"
-roracle_tar:       "ROracle_1.3-1.1.tar.gz"
 
 # =============================================================================
 # Nginx / SSL

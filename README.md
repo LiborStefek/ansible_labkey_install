@@ -19,7 +19,7 @@ Nginx zajišťuje SSL a přesměrování HTTP→HTTPS. LabKey tomcat běží pou
 - SSH klíč s přístupem na cílový server
 
 **Cílový server:**
-- Debian 12
+- Debian 12 nebo 13
 - Uživatel se sudo právy
 - Kořenový adresář `/labkey/` existuje
 - Bez přístupu k internetu — binární soubory se kopírují lokálně
@@ -32,46 +32,62 @@ Stáhnout a uložit do `files/`:
 
 | Soubor | Zdroj | Potřebný pro |
 |--------|-------|-------------|
-| `OpenJDK17U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) | `install.yml` |
+| `OpenJDK17U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) | `install.yml` (LabKey ≤ 25.11) |
+| `OpenJDK25U-jdk_x64_linux_hotspot_*.tar.gz` | [adoptium.net](https://adoptium.net) | `install.yml` (LabKey > 25.11) |
 | `LabKey*-community*.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) | `install.yml` |
 | `rstudio-server-*.deb` | [posit.co/download/rstudio-server](https://posit.co/download/rstudio-server/) | `rstudio.yml` |
-| `ROracle_*.tar.gz` | [CRAN archive](https://cran.r-project.org/src/contrib/Archive/ROracle/) | `oracle.yml` |
 | `instantclient-basic-linux.x64-*.zip` | [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje login) | `oracle.yml` |
-| `instantclient-sdk-linux.x64-*.zip` | [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje login) | `oracle.yml` |
 
 ### 2. Inventory
 
-Upravit `inventory/hosts.ini` — nastavit IP adresu cílového serveru:
+**`inventory/hosts.ini`** — přidat všechny cílové servery:
 
 ```ini
 [labkey_servers]
-labkey-debian ansible_host=<IP adresa>
+labkey-dev  ansible_host=<IP nebo FQDN>
+labkey-vav  ansible_host=<IP nebo FQDN>
 
 [labkey_servers:vars]
 ansible_user=<uživatel se sudo>
 ```
 
-### 3. Konfigurace
-
-Upravit `inventory/group_vars/labkey_servers.yml`:
+Pro každý server vytvořit soubor `inventory/host_vars/<jmeno>.yml` s per-host hodnotami:
 
 ```yaml
-# Názvy souborů musí odpovídat tomu, co je v files/
-jdk_archive:     "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
-jdk_dir:         "jdk-17.0.18+8"
-# Odkomentovat požadovanou verzi LabKey:
+# inventory/host_vars/labkey-dev.yml
+labkey_hostname: "labkey-dev.firma.cz"
+ssl_cert_file:   "labkey-dev.crt"
+ssl_key_file:    "labkey-dev.key"
+# labkey_db_pass:        "heslo-specifické-pro-server"
+# labkey_encryption_key: "přesně-32-znaků-dlouhý-klíč!!"
+```
+
+Sdílená nastavení (stejná pro všechny servery) zůstávají v `group_vars/labkey_servers.yml`.
+
+### 3. Konfigurace
+
+Upravit `inventory/group_vars/labkey_servers.yml` — odkomentovat požadovanou verzi LabKey:
+
+```yaml
+# Odkomentovat požadovanou verzi LabKey (tarball musí být v files/):
 labkey_archive:  "LabKey25.11.0-1-community.tar.gz"
 labkey_dist_dir: "LabKey25.11.0-1-community"
 
-# Před ostrým nasazením změnit:
+# Před ostrým nasazením změnit (nebo nastavit per-host v host_vars):
 labkey_db_pass:        "silné-heslo"
 labkey_encryption_key: "přesně-32-znaků-dlouhý-klíč!!"
-
-# Nginx / SSL — vyplnit před spuštěním ssl.yml:
-labkey_hostname: "labkey.firma.cz"   # hostname přidělený správcem sítě
-ssl_cert_file:   "labkey.crt"        # soubory uložit do files/
-ssl_key_file:    "labkey.key"        # privátní klíč — není v gitu!
 ```
+
+#### Volba verze Java
+
+Java se vybírá automaticky podle verze LabKey — příslušný tarball musí být předem uložen v `files/`:
+
+| Verze LabKey | Java | Soubor v `files/` |
+|---|---|---|
+| ≤ 25.11 | JDK 17 | `OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz` |
+| > 25.11 | JDK 25 | `OpenJDK25U-jdk_x64_linux_hotspot_25.0.2_10.tar.gz` |
+
+Oba tarbally jsou dostupné na [adoptium.net](https://adoptium.net). Názvy souborů a adresářů uvnitř archivu musí odpovídat hodnotám `jdk_archive`/`jdk_dir` resp. `jdk25_archive`/`jdk25_dir` v `group_vars/labkey_servers.yml`.
 
 ### 4. SSH klíč
 
@@ -103,16 +119,14 @@ ansible-playbook playbooks/install.yml
 
 ### HTTPS (certifikát ve formátu PEM)
 
-1. Uložit certifikát a klíč do `files/`:
-   ```
-   files/labkey.crt
-   files/labkey.key
-   ```
+1. Uložit certifikát a klíč do `files/` (per-server název doporučen, např. `labkey-dev.crt`).
    Privátní klíč (`.key`) je v `.gitignore` — do gitu se nedostane.
 
-2. Nastavit hostname v `group_vars/labkey_servers.yml`:
+2. V `inventory/host_vars/<server>.yml` nastavit:
    ```yaml
    labkey_hostname: "labkey.firma.cz"
+   ssl_cert_file:   "labkey.crt"
+   ssl_key_file:    "labkey.key"
    ```
 
 3. Spustit:
@@ -128,7 +142,7 @@ ansible-playbook playbooks/install.yml
 |------|--------------|
 | APT | postgresql, r-base, texinfo, uuid-runtime a další závislosti |
 | Adresáře | `/labkey/{labkey,src,apps,backupArchive}` |
-| Java | JDK 17 → `/labkey/apps/`, symlink `/usr/local/java` |
+| Java | JDK 17 nebo 25 (dle verze LabKey) → `/labkey/apps/`, symlink `/usr/local/java` |
 | PostgreSQL | Přesun datového adresáře do `/usr/local/pgsql/data`, vytvoření DB a uživatele |
 | LabKey | Rozbalení distribuce, deploy JAR + konfigurace do `/labkey/labkey/` |
 | Systemd | Instalace a spuštění služby `labkey_server` na portu 8080 |
@@ -164,19 +178,17 @@ rstudio_deb: "rstudio-server-2024.09.1-394-amd64.deb"
 
 ### `oracle.yml` (volitelné)
 
-Instaluje Oracle Instant Client a zkompiluje R balíček ROracle pro přístup k Oracle DB z R scriptů v LabKey.
+Instaluje Oracle Instant Client pro přístup k Oracle DB.
 
 | Krok | Co se provede |
 |------|--------------|
 | APT | libaio1, unzip |
-| Oracle IC | Rozbalení Basic + SDK do `/opt/oracle/instantclient_*/` |
+| Oracle IC | Rozbalení Basic do `/opt/oracle/instantclient_*/` |
 | ldconfig | Registrace sdílených knihoven |
 | profile.d | `/etc/profile.d/oracle_client.sh` — ORACLE_HOME, LD_LIBRARY_PATH |
-| ROracle | `R CMD INSTALL` s OCI_LIB/OCI_INC, výsledek v `/usr/local/lib/R/site-library/ROracle` |
 
 Před spuštěním uložit do `files/`:
-- `instantclient-basic-linux.x64-*.zip` a `instantclient-sdk-linux.x64-*.zip` — z [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje účet Oracle)
-- `ROracle_*.tar.gz` — z [CRAN archive](https://cran.r-project.org/src/contrib/Archive/ROracle/)
+- `instantclient-basic-linux.x64-*.zip` — z [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje účet Oracle)
 
 ### `backup.yml` / `restore.yml`
 
@@ -255,7 +267,7 @@ systemctl restart rstudio-server
 
 ## Před ostrým nasazením
 
-1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml`, až poté spustit `install.yml`
+1. **Hesla** — změnit `labkey_db_pass` a `labkey_encryption_key` v `group_vars/labkey_servers.yml` nebo per-host v `host_vars/<server>.yml`, až poté spustit `install.yml`
 2. **SMTP** — nakonfigurovat v `/labkey/labkey/config/application.properties`
 3. **Firewall** — otevřít porty 80 a 443, porty 8080 a 8787 ponechat pouze lokálně dostupné
 4. **Zálohování** — nastavit zálohy PostgreSQL a adresáře `/labkey/labkey/`
