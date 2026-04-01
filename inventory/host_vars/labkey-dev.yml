@@ -1,0 +1,12 @@
+---
+# Per-host proměnné pro labkey-dev
+# Přepisují hodnoty z group_vars/labkey_servers.yml
+
+labkey_hostname: "labkey-dev.firma.cz"
+
+ssl_cert_file: "labkey-dev.crt"
+ssl_key_file:  "labkey-dev.key"
+
+# Hesla specifická pro tento server (doporučeno: ansible-vault encrypt_string)
+# labkey_db_pass:        "tajne_heslo_dev"
+# labkey_encryption_key: "changeme32charslongkey12345678"

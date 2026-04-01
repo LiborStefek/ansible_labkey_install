@@ -9,7 +9,6 @@
 
   vars:
     labkey_dist: "{{ labkey_src }}/{{ labkey_dist_dir }}"
-    jdk_path:    "{{ labkey_apps }}/{{ jdk_dir }}"
 
   # ===========================================================================
   # 1. APT balíčky
@@ -57,28 +56,56 @@
         - "{{ labkey_backup }}"
 
   # ===========================================================================
-  # 3. Java (JDK 17)
+  # 3. Java — výběr JDK 17 nebo 25 podle verze LabKey
   # ===========================================================================
 
-    - name: "Java | Zkopírování JDK archivu na server"
-      copy:
-        src: "../files/{{ jdk_archive }}"
-        dest: "{{ labkey_apps }}/{{ jdk_archive }}"
+    - name: "Java | Detekce verze LabKey"
+      set_fact:
+        _labkey_version: "{{ labkey_dist_dir | regex_search('LabKey(\\d+\\.\\d+)', '\\1') | first }}"
+
+    - name: "Java | Výběr JDK 25 (LabKey > 25.11)"
+      set_fact:
+        effective_jdk_archive: "{{ jdk25_archive }}"
+        effective_jdk_dir:     "{{ jdk25_dir }}"
+        effective_jdk_url:     "{{ jdk25_url }}"
+      when: _labkey_version is version('25.11', '>')
+
+    - name: "Java | Výběr JDK 17 (LabKey ≤ 25.11)"
+      set_fact:
+        effective_jdk_archive: "{{ jdk_archive }}"
+        effective_jdk_dir:     "{{ jdk_dir }}"
+        effective_jdk_url:     ""
+      when: not (_labkey_version is version('25.11', '>'))
+
+    - name: "Java | Stažení JDK 25 z internetu"
+      get_url:
+        url:  "{{ effective_jdk_url }}"
+        dest: "{{ labkey_apps }}/{{ effective_jdk_archive }}"
         owner: root
         group: root
         mode: "0644"
+      when: effective_jdk_url != ""
+
+    - name: "Java | Zkopírování JDK 17 archivu na server (z files/)"
+      copy:
+        src: "../files/{{ effective_jdk_archive }}"
+        dest: "{{ labkey_apps }}/{{ effective_jdk_archive }}"
+        owner: root
+        group: root
+        mode: "0644"
+      when: effective_jdk_url == ""
 
     - name: "Java | Rozbalení JDK do {{ labkey_apps }}"
       unarchive:
-        src: "{{ labkey_apps }}/{{ jdk_archive }}"
-        dest: "{{ labkey_apps }}"
+        src:     "{{ labkey_apps }}/{{ effective_jdk_archive }}"
+        dest:    "{{ labkey_apps }}"
         remote_src: true
-        creates: "{{ jdk_path }}"
+        creates: "{{ labkey_apps }}/{{ effective_jdk_dir }}"
 
-    - name: "Java | Symlink /usr/local/java → {{ jdk_path }}"
+    - name: "Java | Symlink /usr/local/java → {{ labkey_apps }}/{{ effective_jdk_dir }}"
       file:
-        src: "{{ jdk_path }}"
-        dest: "/usr/local/java"
+        src:   "{{ labkey_apps }}/{{ effective_jdk_dir }}"
+        dest:  "/usr/local/java"
         state: link
 
     - name: "Java | Přidání JAVA_HOME do /etc/profile"

@@ -1,9 +1,16 @@
 ---
 # =============================================================================
 # JDK
+# Výchozí: JDK 17 (pro LabKey ≤ 25.11). Pro LabKey > 25.11 se automaticky
+# použije JDK 25 — install.yml ho stáhne z internetu (jdk25_url).
 # =============================================================================
 jdk_archive: "OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz"
 jdk_dir:     "jdk-17.0.18+8"                 # adresář uvnitř archivu
+
+# JDK 25 (Temurin) — použije se automaticky pokud labkey_version > 25.11
+jdk25_archive: "OpenJDK25U-jdk_x64_linux_hotspot_25.0.2_10.tar.gz"
+jdk25_dir:     "jdk-25.0.2+10"
+jdk25_url:     "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_x64_linux_hotspot_25.0.2_10.tar.gz"
 
 # =============================================================================
 # LabKey verze — odkomentovat požadovanou verzi, ostatní zakomentovat
@@ -94,9 +101,7 @@ roracle_tar:       "ROracle_1.3-1.1.tar.gz"
 
 # =============================================================================
 # Nginx / SSL
+# labkey_hostname, ssl_cert_file, ssl_key_file jsou definovány per-host
+# v inventory/host_vars/<hostname>.yml
 # =============================================================================
 labkey_port:     8080                      # interní HTTP port LabKey
-labkey_hostname: "labkey-dev.fno.cz"       # hostname přidělený správcem sítě
-
-ssl_cert_file: "labkey.crt"               # soubory uložit do files/
-ssl_key_file:  "labkey.key"
