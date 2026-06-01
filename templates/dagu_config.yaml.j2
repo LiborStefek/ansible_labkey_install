@@ -1,0 +1,39 @@
+# config.yaml — globální konfigurace Dagu (server + scheduler)
+# Spravováno Ansiblem: playbooks/dagu.yml
+
+host: {{ dagu_host | to_json }}
+port: {{ dagu_port }}
+
+base_path: {{ dagu_base_path | to_json }}
+api_base_path: {{ dagu_api_base_path | to_json }}
+public_url: {{ dagu_public_url | to_json }}
+default_shell: {{ dagu_default_shell | to_json }}
+
+dags_dir: {{ dagu_dags_dir | to_json }}
+log_dir: {{ dagu_log_dir | to_json }}
+
+auth:
+  mode: basic
+  basic:
+    username: {{ dagu_auth_username | to_json }}
+    password: {{ dagu_auth_password | to_json }}
+
+smtp:
+  host: {{ dagu_smtp_host | to_json }}
+  port: {{ dagu_smtp_port | to_json }}
+{% if dagu_smtp_user | default('') != '' %}
+  username: {{ dagu_smtp_user | to_json }}
+{% endif %}
+{% if dagu_smtp_password | default('') != '' %}
+  password: {{ dagu_smtp_password | to_json }}
+{% endif %}
+
+mail_on:
+  failure: {{ dagu_mail_on_failure | bool | lower }}
+  success: {{ dagu_mail_on_success | bool | lower }}
+
+error_mail:
+  from: {{ dagu_error_mail_from | to_json }}
+  to: {{ dagu_error_mail_to | to_json }}
+  prefix: {{ dagu_error_mail_prefix | to_json }}
+  attach_logs: {{ dagu_error_mail_attach_logs | bool | lower }}

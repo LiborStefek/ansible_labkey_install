@@ -1,0 +1,200 @@
+---
+# =============================================================================
+# Dagu workflow scheduler pro labkey-dev
+#
+# Předpoklady:
+#   - archiv files/{{ dagu_archive }} existuje na řídicí stanici
+#   - LabKey servisní účet je {{ dagu_user }} (výchozí labkeysvc)
+#   - pokud má být UI dostupné přes HTTPS, nejdřív/nebo potom spustit ssl.yml
+#
+# Spuštění:
+#   ansible-playbook playbooks/dagu.yml
+# =============================================================================
+- name: Instalace Dagu workflow scheduler
+  hosts: labkey-dev
+  become: true
+
+  tasks:
+
+  # ===========================================================================
+  # 1. Kontroly vstupů
+  # ===========================================================================
+
+    - name: "Dagu | Kontrola lokálního archivu ve files/"
+      stat:
+        path: "{{ playbook_dir }}/../files/{{ dagu_archive }}"
+      delegate_to: localhost
+      become: false
+      register: dagu_archive_stat
+
+    - name: "Dagu | Chybí archiv ve files/"
+      fail:
+        msg: "Chybí files/{{ dagu_archive }}. Ulož instalační archiv Dagu do adresáře files/."
+      when: not dagu_archive_stat.stat.exists
+
+    - name: "Dagu | Kontrola délky UI hesla"
+      assert:
+        that:
+          - dagu_auth_password | length >= 8
+        fail_msg: "dagu_auth_password musí mít alespoň 8 znaků."
+
+    - name: "Dagu | Upozornění na výchozí UI heslo"
+      debug:
+        msg: "Používá se výchozí dagu_auth_password; pro trvalé použití ho přepiš v host_vars nebo přes ansible-vault."
+      when: dagu_auth_password == "ZMEN_ME_min8znaku"
+
+  # ===========================================================================
+  # 2. Uživatel a adresáře
+  # ===========================================================================
+
+    - name: "Dagu | Zajištění servisního uživatele"
+      user:
+        name: "{{ dagu_user }}"
+        system: true
+        create_home: true
+        shell: /bin/false
+        comment: "LabKey/Dagu service account"
+
+    - name: "Dagu | Vytvoření adresářů"
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(dagu_user) }}"
+        group: "{{ item.group | default(dagu_group) }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ labkey_apps }}", owner: root, group: root, mode: "0755" }
+        - { path: "{{ dagu_home }}", mode: "0755" }
+        - { path: "{{ dagu_dags_dir }}", mode: "0755" }
+        - { path: "{{ dagu_log_dir }}", mode: "0755" }
+        - { path: "{{ dagu_home }}/data", mode: "0750" }
+        - { path: "{{ dagu_home }}/suspend", mode: "0750" }
+        - { path: "{{ dagu_install_dir }}", owner: root, group: root, mode: "0755" }
+
+  # ===========================================================================
+  # 3. Binárka z lokálního archivu
+  # ===========================================================================
+
+    - name: "Dagu | Zkopírování archivu na server"
+      copy:
+        src: "../files/{{ dagu_archive }}"
+        dest: "{{ labkey_apps }}/{{ dagu_archive }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Dagu | Rozbalení archivu do {{ dagu_install_dir }}"
+      unarchive:
+        src: "{{ labkey_apps }}/{{ dagu_archive }}"
+        dest: "{{ dagu_install_dir }}"
+        remote_src: true
+        creates: "{{ dagu_install_dir }}/dagu"
+
+    - name: "Dagu | Instalace binárky {{ dagu_bin }}"
+      copy:
+        src: "{{ dagu_install_dir }}/dagu"
+        dest: "{{ dagu_bin }}"
+        owner: root
+        group: root
+        mode: "0755"
+        remote_src: true
+
+    - name: "Dagu | Ověření verze"
+      command: "{{ dagu_bin }} version"
+      register: dagu_version_result
+      changed_when: false
+
+  # ===========================================================================
+  # 4. Konfigurace a systemd
+  # ===========================================================================
+
+    - name: "Dagu | Nasazení config.yaml"
+      template:
+        src: "../templates/dagu_config.yaml.j2"
+        dest: "{{ dagu_home }}/config.yaml"
+        owner: "{{ dagu_user }}"
+        group: "{{ dagu_group }}"
+        mode: "0640"
+      no_log: true
+      notify: restart dagu
+
+    - name: "Dagu | Instalace systemd služby"
+      template:
+        src: "../templates/dagu.service.j2"
+        dest: "/etc/systemd/system/dagu.service"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart dagu
+
+    - name: "Dagu | systemd daemon-reload"
+      systemd:
+        daemon_reload: true
+
+    - name: "Dagu | Povolení a spuštění služby"
+      service:
+        name: dagu
+        state: started
+        enabled: true
+
+  # ===========================================================================
+  # 5. Nginx reverse proxy, pokud už je nainstalovaný ssl.yml
+  # ===========================================================================
+
+    - name: "Dagu/Nginx | Kontrola existujícího LabKey vhosta"
+      stat:
+        path: /etc/nginx/sites-available/labkey
+      register: dagu_nginx_vhost
+      when: dagu_nginx_enabled | bool
+
+    - name: "Dagu/Nginx | Rozšíření vhosta o {{ dagu_base_path }}"
+      template:
+        src: "../templates/nginx_labkey.conf.j2"
+        dest: "/etc/nginx/sites-available/labkey"
+        owner: root
+        group: root
+        mode: "0644"
+      register: dagu_nginx_template
+      notify: reload nginx
+      when:
+        - dagu_nginx_enabled | bool
+        - dagu_nginx_vhost.stat.exists | default(false)
+
+    - name: "Dagu/Nginx | Ověření nginx konfigurace"
+      command: nginx -t
+      changed_when: false
+      when:
+        - dagu_nginx_enabled | bool
+        - dagu_nginx_vhost.stat.exists | default(false)
+        - dagu_nginx_template is changed
+
+    - name: "Dagu/Nginx | Upozornění, pokud ssl.yml ještě neběžel"
+      debug:
+        msg: "Nginx vhost /etc/nginx/sites-available/labkey neexistuje. Pro vystavení Dagu UI spusť playbooks/ssl.yml."
+      when:
+        - dagu_nginx_enabled | bool
+        - not (dagu_nginx_vhost.stat.exists | default(false))
+
+  # ===========================================================================
+  # 6. Shrnutí
+  # ===========================================================================
+
+    - name: "HOTOVO | Dagu"
+      debug:
+        msg:
+          - "Dagu {{ dagu_version_result.stdout }} je nainstalováno."
+          - "Služba: systemctl status dagu"
+          - "Logy:   journalctl -u dagu -f"
+          - "UI:     {{ dagu_public_url }}"
+          - "DAGy:   {{ dagu_dags_dir }}"
+
+  handlers:
+    - name: restart dagu
+      service:
+        name: dagu
+        state: restarted
+
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded

@@ -20,6 +20,33 @@ server {
     # Doporučená velikost pro uploady do LabKey
     client_max_body_size 1G;
 
+{% if dagu_nginx_enabled | default(false) %}
+    # Dagu workflow scheduler UI
+    location = {{ dagu_base_path }} {
+        proxy_pass         http://{{ dagu_host }}:{{ dagu_port }};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_read_timeout 3600s;
+    }
+
+    location {{ dagu_base_path }}/ {
+        proxy_pass         http://{{ dagu_host }}:{{ dagu_port }};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_read_timeout 3600s;
+    }
+
+{% endif %}
     location / {
         proxy_pass         http://127.0.0.1:{{ labkey_port }};
         proxy_set_header   Host              $host;

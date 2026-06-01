@@ -1,0 +1,24 @@
+[Unit]
+Description=Dagu workflow scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ dagu_user }}
+Group={{ dagu_group }}
+
+Environment=DAGU_HOME={{ dagu_home }}
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+ExecStart={{ dagu_bin }} start-all
+
+Restart=on-failure
+RestartSec=10
+
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths={{ dagu_home }}
+
+[Install]
+WantedBy=multi-user.target

@@ -103,3 +103,45 @@ oracle_basic_zip:  "instantclient-basic-linux.x64-23.26.1.0.0.zip"
 # v inventory/host_vars/<hostname>.yml
 # =============================================================================
 labkey_port:     8080                      # interní HTTP port LabKey
+
+# =============================================================================
+# Dagu workflow scheduler
+# Archiv uložit předem do files/. Playbook playbooks/dagu.yml instaluje Dagu
+# primárně na labkey-dev, kde běží pod stejným servisním účtem jako LabKey.
+# =============================================================================
+dagu_version: "2.7.7"
+dagu_archive: "dagu_2.7.7_linux_amd64.tar.gz"
+dagu_install_dir: "{{ labkey_apps }}/dagu-{{ dagu_version }}"
+dagu_bin: "/usr/local/bin/dagu"
+
+dagu_user: "{{ labkey_system_user }}"
+dagu_group: "{{ labkey_system_user }}"
+dagu_home: "{{ labkey_root }}/dagu"
+dagu_dags_dir: "{{ dagu_home }}/dags"
+dagu_log_dir: "{{ dagu_home }}/logs"
+
+dagu_host: "127.0.0.1"
+dagu_port: 8090
+dagu_base_path: "/workflows"
+dagu_api_base_path: "/api/v1"
+dagu_public_url: "https://{{ labkey_hostname }}{{ dagu_base_path }}"
+dagu_default_shell: "/bin/bash"
+
+dagu_auth_username: "admin"
+dagu_auth_password: "ZMEN_ME_min8znaku"   # pro reálné použití přepsat per-host nebo přes vault
+
+dagu_smtp_host: "smtp.fno.cz"
+dagu_smtp_port: "25"
+dagu_smtp_user: ""
+dagu_smtp_password: ""
+
+dagu_mail_on_failure: true
+dagu_mail_on_success: false
+dagu_error_mail_from: "dagu@{{ labkey_hostname }}"
+dagu_error_mail_to: "lstefek@fno.cz"
+dagu_error_mail_prefix: "[DAGU-FAIL]"
+dagu_error_mail_attach_logs: true
+
+# Pokud je na serveru už nasazen nginx vhost z ssl.yml, dagu.yml ho rozšíří
+# o reverse proxy na {{ dagu_base_path }}.
+dagu_nginx_enabled: true

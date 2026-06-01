@@ -37,6 +37,7 @@ Stáhnout a uložit do `files/`:
 | `LabKey*-community*.tar.gz` | [labkey.com/download](https://www.labkey.com/download-community-edition/) | `install.yml` |
 | `rstudio-server-*.deb` | [posit.co/download/rstudio-server](https://posit.co/download/rstudio-server/) | `rstudio.yml` |
 | `instantclient-basic-linux.x64-*.zip` | [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje login) | `oracle.yml` |
+| `dagu_2.7.7_linux_amd64.tar.gz` | Dagu release archiv | `dagu.yml` |
 
 ### 2. Inventory
 
@@ -103,6 +104,9 @@ ansible-playbook playbooks/ping.yml
 
 # Kompletní instalace (vše najednou)
 ansible-playbook playbooks/install.yml playbooks/ssl.yml playbooks/rstudio.yml playbooks/oracle.yml playbooks/profile.yml
+
+# Dagu workflow scheduler na labkey-dev
+ansible-playbook playbooks/dagu.yml
 ```
 
 Jednotlivé playboky lze spouštět i samostatně — viz sekce níže.
@@ -189,6 +193,29 @@ Instaluje Oracle Instant Client pro přístup k Oracle DB.
 
 Před spuštěním uložit do `files/`:
 - `instantclient-basic-linux.x64-*.zip` — z [oracle.com](https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html) (vyžaduje účet Oracle)
+
+### `dagu.yml` (volitelné)
+
+Instaluje Dagu workflow scheduler na `labkey-dev`.
+
+| Krok | Co se provede |
+|------|--------------|
+| Archiv | Zkopírování `files/{{ dagu_archive }}` na server a rozbalení do `{{ dagu_install_dir }}` |
+| Binárka | Instalace `dagu` do `/usr/local/bin/dagu` |
+| Adresáře | Vytvoření `{{ dagu_home }}`, `dags`, `logs`, `data`, `suspend` |
+| Konfigurace | Nasazení `{{ dagu_home }}/config.yaml`, UI pod `{{ dagu_base_path }}` |
+| Systemd | Instalace a spuštění služby `dagu` pod účtem `{{ dagu_user }}` |
+| Nginx | Pokud už existuje vhost ze `ssl.yml`, doplní reverse proxy `{{ dagu_base_path }}` |
+
+Před spuštěním uložit do `files/`:
+- `{{ dagu_archive }}` — nastavitelné v `inventory/group_vars/labkey_servers.yml`
+
+Výchozí účet je `{{ labkey_system_user }}` (`labkeysvc`). Heslo do Dagu UI přepiš před trvalým použitím:
+
+```yaml
+# inventory/host_vars/labkey-dev.yml
+dagu_auth_password: "silne-heslo-min-8-znaku"
+```
 
 ### `backup.yml` / `restore.yml`
 
